@@ -1,0 +1,124 @@
+{
+    "name": "04 — Daily Digest (CEO, 08:00 Tbilisi)",
+    "flow": [
+        {
+            "id": 1,
+            "module": "datastore:SearchRecords",
+            "version": 1,
+            "parameters": { "datastore": null },
+            "mapper": {
+                "filter": [ [ { "a": "updated_at", "b": "{{addDays(now; -1)}}", "o": "date:greater" } ] ],
+                "limit": "500"
+            },
+            "metadata": {
+                "designer": { "x": 0, "y": 0, "name": "Orders in the last 24h" },
+                "notes": "Select 'Orders' data store. SCHEDULING: set this scenario to run daily at 08:00, timezone Asia/Tbilisi (scenario settings — not stored in the blueprint)."
+            }
+        },
+        {
+            "id": 2,
+            "module": "datastore:SearchRecords",
+            "version": 1,
+            "parameters": { "datastore": null },
+            "mapper": {
+                "filter": [ [ { "a": "status", "b": "queued|received", "o": "text:matchpattern" } ] ],
+                "limit": "200"
+            },
+            "metadata": { "designer": { "x": 300, "y": 0, "name": "Open tasks + pending approvals" }, "notes": "Select 'Task Queue' data store." }
+        },
+        {
+            "id": 3,
+            "module": "google-sheets:filterRows",
+            "version": 2,
+            "parameters": { "__IMTCONN__": null },
+            "mapper": {
+                "limit": "50"
+            },
+            "metadata": { "designer": { "x": 600, "y": 0, "name": "Yesterday's incidents" }, "notes": "Spreadsheet 'Company Brain', sheet 'Incidents', filter: timestamp within last 24h AND status=open. Use 'Search Rows' module and set the filter in the UI after import." }
+        },
+        {
+            "id": 4,
+            "module": "util:SetVariable2",
+            "version": 1,
+            "mapper": {
+                "name": "digest_input",
+                "scope": "roundtrip",
+                "value": "{\"type\":\"daily_digest_run\",\"payload_json\":{\"date\":\"{{formatDate(now; 'YYYY-MM-DD')}}\",\"orders_24h\":{{1.__IMTAGGLENGTH__}},\"orders\":{{1}},\"open_tasks\":{{2}},\"incidents\":{{3}}}}"
+            },
+            "metadata": { "designer": { "x": 900, "y": 0, "name": "Assemble digest payload" }, "notes": "If arrays are large, insert Array Aggregators after modules 1–3 first." }
+        },
+        {
+            "id": 5,
+            "module": "anthropic-claude:createMessage",
+            "version": 1,
+            "parameters": { "__IMTCONN__": null },
+            "mapper": {
+                "model": "claude-sonnet-4-6",
+                "max_tokens": "2000",
+                "system": "<<PASTE prompts/00-shared-conventions.md + prompts/01-ceo-orchestrator.md HERE>>",
+                "messages": [ { "role": "user", "content": "{{4.digest_input}}" } ]
+            },
+            "onerror": [
+                {
+                    "id": 20,
+                    "module": "google-sheets:addRow",
+                    "version": 2,
+                    "parameters": { "__IMTCONN__": null },
+                    "mapper": { "values": { "0": "{{now}}", "1": "04 — Daily Digest", "2": "CEO digest Claude call", "3": "{{20.message}}", "4": "open" } },
+                    "metadata": { "designer": { "x": 1200, "y": 300, "name": "Error → Incidents" }, "notes": "Add Break handler: 3 retries, exponential." }
+                }
+            ],
+            "metadata": { "designer": { "x": 1200, "y": 0, "name": "CEO agent writes the digest" } }
+        },
+        {
+            "id": 6,
+            "module": "json:ParseJSON",
+            "version": 1,
+            "parameters": { "type": "" },
+            "mapper": { "json": "{{5.body.content[].text}}" },
+            "metadata": { "designer": { "x": 1500, "y": 0, "name": "Parse agent JSON" } }
+        },
+        {
+            "id": 7,
+            "module": "telegram:SendReplyMessage",
+            "version": 1,
+            "parameters": { "__IMTCONN__": null },
+            "filter": { "name": "send_digest", "conditions": [ [ { "a": "{{6.action}}", "b": "send_digest", "o": "text:equal" } ] ] },
+            "mapper": {
+                "chatId": "<<OWNER_TELEGRAM_CHAT_ID>>",
+                "text": "☀️ Daily digest — {{formatDate(now; 'DD MMM YYYY')}}\n\n{{6.parameters.digest_text_en}}\n\n⚠️ Risks: {{join(6.parameters.risks; '; ')}}\n🔐 Pending approvals: {{join(6.parameters.approvals_pending; '; ')}}"
+            },
+            "metadata": { "designer": { "x": 1800, "y": -150, "name": "Digest → owner Telegram" } }
+        },
+        {
+            "id": 8,
+            "module": "email:ActionSendEmail",
+            "version": 7,
+            "parameters": { "account": null, "saveAfterSent": false },
+            "filter": { "name": "send_digest", "conditions": [ [ { "a": "{{6.action}}", "b": "send_digest", "o": "text:equal" } ] ] },
+            "mapper": {
+                "to": [ "<<OWNER_EMAIL>>" ],
+                "subject": "Daily executive summary — {{formatDate(now; 'YYYY-MM-DD')}}",
+                "contentType": "text",
+                "text": "{{6.parameters.digest_text_en}}\n\nHighlights:\n{{join(6.parameters.highlights; newline)}}\n\nRisks:\n{{join(6.parameters.risks; newline)}}\n\nPending approvals:\n{{join(6.parameters.approvals_pending; newline)}}"
+            },
+            "metadata": { "designer": { "x": 1800, "y": 150, "name": "Digest → owner email" } }
+        }
+    ],
+    "metadata": {
+        "instant": false,
+        "version": 1,
+        "scenario": {
+            "roundtrips": 1,
+            "maxErrors": 3,
+            "autoCommit": true,
+            "autoCommitTriggerLast": true,
+            "sequential": false,
+            "confidential": false,
+            "dlq": false,
+            "freshVariables": false
+        },
+        "designer": { "orientation": "horizontal" },
+        "zone": "eu1.make.com"
+    }
+}

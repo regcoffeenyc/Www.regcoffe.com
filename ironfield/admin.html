@@ -289,7 +289,7 @@ function hashtags(cat){
 }
 
 /* ---------- app state / router ---------- */
-var S = { view:'dashboard', msgId:null, q:'', authed: sessionStorage.getItem('gtm-admin-session')==='1' };
+var S = { view:'ceo', msgId:null, q:'', authed: sessionStorage.getItem('gtm-admin-session')==='1' };
 var AGENTS = [
   {k:'listings',  n:'განცხადებების აგენტი', d:'მოდერაცია და დამტკიცება', m:function(){var c=allListings().filter(function(l){return lStatus(l)==='pending';}).length; return c?c+' მოლოდინში':'';}},
   {k:'orders',    n:'შეკვეთების აგენტი', d:'შეკვეთების ნაკადი და სტატუსები', m:function(){var c=ordersAll().filter(function(o){return o.status==='new';}).length; return c?c+' ახალი':'';}},
@@ -315,6 +315,7 @@ var PLAYBOOK = [
   {id:'cal',  t:'ყოველთვიური კონტენტ-კალენდრის შედგენა მარკეტინგის აგენტში'}
 ];
 var NAV = [
+  {k:'ceo',n:'CEO — მთავარი აგენტი'},
   {k:'dashboard',n:'სამეთაურო პანელი'},
   {k:'listings',n:'განცხადებები'},{k:'orders',n:'შეკვეთები'},{k:'users',n:'მომხმარებლები'},
   {k:'catalog',n:'კატალოგი'},{k:'compliance',n:'კანონიერება'},{k:'inbox',n:'შეტყობინებები'},
@@ -329,6 +330,7 @@ function navCount(k){ var a=AGENTS.find(function(a){return a.k===k;}); if(!a)ret
 function render(){
   if(!S.authed) return renderLogin();
   var body =
+    S.view==='ceo'      ? vCEO() :
     S.view==='dashboard'? vDashboard() :
     S.view==='listings' ? vListings() :
     S.view==='orders'   ? vOrders() :
@@ -353,6 +355,70 @@ function render(){
 }
 
 /* ---------- views ---------- */
+var SOP = {
+  listings:  {m:'არც ერთი განცხადება არ გამოქვეყნდეს შემოწმების გარეშე.', a:'აგროვებს ახალ განცხადებებს რიგში, აჩვენებს რეგულირებულობის დროშას.', u:'დაამტკიცე/უარყავი — თითოზე ~20 წამი.', f:'დღეში 1-ჯერ'},
+  orders:    {m:'არც ერთი შეკვეთა არ დარჩეს უპასუხოდ 24 საათზე მეტხანს.', a:'იჭერს ახალ შეკვეთებს, აწყობს სტატუსების მილსადენს.', u:'დაადასტურე ახალი → მონიშნე გზაშია/დასრულებული.', f:'დღეში 1–2-ჯერ'},
+  users:     {m:'სანდო გამყიდველები ვერიფიცირებულები არიან, პრობლემურები — დაბლოკილები.', a:'აგროვებს რეგისტრაციებს ბაზიდან, ითვლის არავერიფიცირებულებს.', u:'ვერიფიკაცია მოთხოვნისას; ბლოკი დარღვევისას.', f:'კვირაში 2-ჯერ'},
+  catalog:   {m:'ფასები აქტუალურია, მარაგი არასდროს არის 0-ზე შეუმჩნევლად.', a:'აფრთხილებს მცირე მარაგზე (≤2 ცალი).', u:'განაახლე ფასი/მარაგი, გამორთე ამოწურული.', f:'კვირაში 1-ჯერ'},
+  compliance:{m:'რეგულირებადი ნივთი მხოლოდ სამივე შემოწმების შემდეგ გადაეცემა — გამონაკლისის გარეშე.', a:'კეტავს დამტკიცებას სამივე პუნქტის მონიშვნამდე.', u:'გადაამოწმე დოკუმენტები და მონიშნე — ეს ერთადერთია, რასაც ავტომატიზაცია ვერ ჩაანაცვლებს.', f:'მოთხოვნისთანავე (პრიორიტეტი #1)'},
+  inbox:     {m:'ყველა შეტყობინებას პასუხი აქვს 24 საათში.', a:'ახარისხებს თემით, ითვლის სისწრაფის ქულას, გთავაზობს მზა პასუხს.', u:'დააჭირე „პასუხს" — შაბლონი უკვე ჩასმულია, საჭიროებისას შეასწორე.', f:'დღეში 1-ჯერ'},
+  marketing: {m:'კვირაში მინიმუმ 3 პოსტი ორივე არხზე.', a:'ჰეშთეგები, ორენოვანი დრაფტები, კონტენტ-კალენდარი.', u:'დაწერე იდეა → დაამტკიცე → გამოაქვეყნე Meta Business-იდან.', f:'კვირაში 1 სესია (30 წთ)'},
+  pr:        {m:'საიტი ჩანს ყველგან, ყველა ბმულს UTM აქვს.', a:'გაზიარების ბმულები, UTM გენერატორი, გაშვების გეგმის ტრეკინგი.', u:'გაუზიარე ახალი აქციები არხებში; შეასრულე გეგმის შემდეგი პუნქტი.', f:'კვირაში 1-ჯერ'},
+  social:    {m:'არც ერთი კომენტარი უპასუხოდ, უარყოფითი — 24 საათში.', a:'აგროვებს კომენტარებს sentiment-ით, აჩვენებს საუკეთესო საათებს.', u:'უპასუხე ახლებს, დამალე სპამი.', f:'დღეში 1-ჯერ'}
+};
+function ceoTasks(){
+  var t=[];
+  var comp=db.compliance.filter(function(x){return x.status==='pending';}).length;
+  if(comp) t.push({p:10,v:'compliance',x:comp+' რეგულირებადი გადაცემა ელოდება შემოწმებას',w:'კრიტიკული'});
+  var newO=ordersAll().filter(function(o){return o.status==='new';}).length;
+  if(newO) t.push({p:9,v:'orders',x:newO+' ახალი შეკვეთა დასადასტურებელია',w:'დღეს'});
+  var pend=allListings().filter(function(l){return lStatus(l)==='pending';}).length;
+  if(pend) t.push({p:8,v:'listings',x:pend+' განცხადება მოდერაციაზეა',w:'დღეს'});
+  var fu=msgsAll().filter(followUp).length;
+  if(fu) t.push({p:8,v:'inbox',x:fu+' შეტყობინება 2+ დღეა უპასუხოა',w:'დღეს'});
+  var unread=msgsAll().filter(function(m){return m.status==='new';}).length;
+  if(unread) t.push({p:6,v:'inbox',x:unread+' წაუკითხავი შეტყობინება',w:'დღეს'});
+  var ment=db.mentions.filter(function(m){return m.status==='new';}).length;
+  if(ment) t.push({p:5,v:'social',x:ment+' ახალი კომენტარი სოც. ქსელებში',w:'დღეს'});
+  var low=db.catalog.filter(function(x){return x.active&&x.stock<=2;}).length;
+  if(low) t.push({p:5,v:'catalog',x:low+' პროდუქტს მარაგი ელევა',w:'ამ კვირაში'});
+  var unver=allUsers().filter(function(u){var f=u.live?u:{verified:(db.userFlags[u.email]||{}).verified}; return !f.verified&&!f.blocked;}).length;
+  if(unver) t.push({p:3,v:'users',x:unver+' მომხმარებელი ვერიფიკაციის გარეშეა',w:'ამ კვირაში'});
+  var nextPr=PLAYBOOK.find(function(x){return !db.prChecks[x.id];});
+  if(nextPr) t.push({p:4,v:'pr',x:'გაშვების გეგმის შემდეგი ნაბიჯი: '+nextPr.t,w:'ამ კვირაში'});
+  var drafts=db.drafts.filter(function(d){return d.status==='draft';}).length;
+  if(drafts) t.push({p:4,v:'marketing',x:drafts+' სოციალური დრაფტი დასამტკიცებელია',w:'ამ კვირაში'});
+  return t.sort(function(a,b){return b.p-a.p;});
+}
+function vCEO(){
+  var tasks=ceoTasks();
+  return '<div class="panel" style="margin-bottom:14px"><div class="ph"><h3>დღის ბრიფინგი — რას გირჩევს CEO აგენტი</h3>'+
+  (tasks.length?'<span class="tag gold">'+tasks.length+' დავალება</span>':'<span class="tag green">ყველაფერი შესრულებულია</span>')+'</div><div class="pb">'+
+  (tasks.length? tasks.map(function(t,i){
+    return '<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)">'+
+    '<span class="tag '+(t.p>=10?'red':t.p>=8?'gold':'dim')+'">'+(i+1)+'</span>'+
+    '<div style="flex:1"><strong>'+esc(t.x)+'</strong><br><span style="color:var(--dim);font-size:.76rem">'+t.w+'</span></div>'+
+    '<button class="btn sm red" data-v="'+t.v+'">შესრულება →</button></div>';
+  }).join('')+'<p class="empty">იმუშავეთ ზემოდან ქვემოთ — რიგი პრიორიტეტითაა დალაგებული. ჩვეულებრივ ~10 წუთი კმარა.</p>'
+  :'<p class="empty">🎉 არაფერი გელოდებათ — ყველა აგენტი მწვანეშია. შეამოწმეთ ხვალ, ან გახსენით მარკეტინგი ახალი პოსტისთვის.</p>')+
+  '</div></div>'+
+  '<div class="panel" style="margin-bottom:14px"><div class="ph"><h3>აგენტების მანდატები — ვინ რაზეა პასუხისმგებელი</h3></div><div class="pb" style="overflow-x:auto"><table>'+
+  '<tr><th>აგენტი</th><th>მიზანი</th><th>ავტომატურად აკეთებს</th><th>თქვენგან სჭირდება</th><th>სიხშირე</th><th>ახლა</th></tr>'+
+  AGENTS.map(function(a){ var s=SOP[a.k]||{}; var m=a.m();
+    return '<tr><td><strong style="cursor:pointer" data-v="'+a.k+'">'+esc(a.n)+'</strong></td><td>'+esc(s.m||'')+'</td><td style="color:var(--muted)">'+esc(s.a||'')+'</td><td>'+esc(s.u||'')+'</td><td><span class="tag dim">'+esc(s.f||'')+'</span></td>'+
+    '<td>'+(m?'<span class="tag gold">'+esc(m)+'</span>':'<span class="tag green">✓</span>')+'</td></tr>';
+  }).join('')+'</table></div></div>'+
+  '<div class="grid2"><div class="panel"><div class="ph"><h3>თქვენი სამუშაო რიტმი</h3></div><div class="pb">'+
+  '<dl class="kv"><dt>ყოველდღე (10 წთ)</dt><dd>გახსენით ეს გვერდი → შეასრულეთ ბრიფინგის რიგი ზემოდან ქვემოთ</dd>'+
+  '<dt>კვირაში 1-ჯერ (30 წთ)</dt><dd>მარკეტინგი: 3 პოსტის დაგეგმვა · კატალოგი: ფასები/მარაგი · პრ: 1 ნაბიჯი გეგმიდან</dd>'+
+  '<dt>თვეში 1-ჯერ (20 წთ)</dt><dd>შედეგების გადახედვა (Meta Business სტატისტიკა) · ADMIN_KEY-ის შეცვლა · კამპანიის ბიუჯეტის კორექცია</dd></dl>'+
+  '<p class="empty">ოქროს წესი: თუ ბრიფინგი ცარიელია — დღეს ადმინში საქმე არ გაქვთ.</p></div></div>'+
+  '<div class="panel"><div class="ph"><h3>რა კეთდება თქვენს გარეშე</h3></div><div class="pb">'+
+  '<dl class="kv"><dt>სრულად ავტომატური</dt><dd>რეგისტრაციები · სესიები · განცხადებების მიღება რიგში · შეტყობინებების დახარისხება და პასუხის შაბლონები · მარაგის გაფრთხილებები · ჰეშთეგები · UTM ბმულები</dd>'+
+  '<dt>ერთი დაჭერა თქვენგან</dt><dd>დამტკიცება/უარყოფა · სტატუსის წინსვლა · პასუხის გაგზავნა · ვერიფიკაცია</dd>'+
+  '<dt>მხოლოდ თქვენ</dt><dd>კანონიერი გადაცემის სამი შემოწმება · ფასების პოლიტიკა · პოსტების საბოლოო ტექსტი</dd></dl>'+
+  '</div></div></div>';
+}
 function vDashboard(){
   var pend=allListings().filter(function(l){return lStatus(l)==='pending';}).length;
   var newO=ordersAll().filter(function(o){return o.status==='new';}).length;

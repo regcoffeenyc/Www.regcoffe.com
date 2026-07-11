@@ -211,6 +211,35 @@ var db = {
 function save(k){ LS.set('gtm-admin-'+({listingStatus:'listing-status',userFlags:'user-flags',seedUsers:'seed-users',prChecks:'pr-checks'}[k]||k), db[k]); }
 function log(x){ db.activity.unshift({t:new Date().toISOString(), x:x}); db.activity=db.activity.slice(0,40); save('activity'); }
 
+/* backend bridge: live data over /api/gtm when a database is attached */
+var API = { on:false };
+var live = { users:[], listings:[], orders:[], messages:[] };
+function apiKey(){ try{ return atob(db.auth.p); }catch(e){ return ''; } }
+function api(a, opts){
+  opts = opts || {};
+  opts.headers = Object.assign({'Content-Type':'application/json','x-admin-key':apiKey()}, opts.headers||{});
+  return fetch('/api/gtm?a='+a, opts).then(function(r){ return r.json(); });
+}
+function refreshLive(){
+  if(!API.on) return Promise.resolve();
+  return Promise.all([api('users'),api('listings'),api('orders'),api('messages')]).then(function(r){
+    live.users   = Array.isArray(r[0]) ? r[0] : [];
+    live.listings= Array.isArray(r[1]) ? r[1] : [];
+    live.orders  = Array.isArray(r[2]) ? r[2] : [];
+    live.messages= Array.isArray(r[3]) ? r[3] : [];
+  }).catch(function(e){});
+}
+fetch('/api/gtm?a=health').then(function(r){return r.json();}).then(function(h){
+  if(h && h.connected){ API.on = true; refreshLive().then(function(){ render(); }); }
+}).catch(function(e){});
+
+function ordersAll(){
+  return live.orders.map(function(o){ o=Object.assign({},o); o.live=true; return o; }).concat(db.orders);
+}
+function msgsAll(){
+  return live.messages.map(function(m){ m=Object.assign({},m); m.live=true; return m; }).concat(db.messages);
+}
+
 /* shop integration: users registered on the storefront + listings posted there */
 function shopUsers(){
   var u = LS.get('gtm-users', {});
@@ -223,9 +252,17 @@ function shopListings(){
             price:+l.price||0, cat:l.category||'—', cond:l.condition||'—', regulated:!!l.regulated, created:l.createdAt||new Date().toISOString()};
   });
 }
-function allListings(){ return shopListings().concat(db.listings); }
-function lStatus(l){ return db.listingStatus[l.id] || 'pending'; }
-function allUsers(){ return shopUsers().concat(db.seedUsers); }
+function allListings(){
+  var lv = live.listings.map(function(l){ return {id:l.id,name:l.name,seller:l.seller,price:l.price,cat:l.cat,cond:l.cond,regulated:l.regulated,created:l.created,live:true,status:l.status}; });
+  var liveNames = {}; lv.forEach(function(l){ liveNames[l.name]=1; });
+  return lv.concat(shopListings().filter(function(s){ return !liveNames[s.name]; })).concat(db.listings);
+}
+function lStatus(l){ if(l.live) return l.status; return db.listingStatus[l.id] || 'pending'; }
+function allUsers(){
+  var lv = live.users.map(function(u){ return {email:u.email,name:u.name,phone:u.phone,source:'LIVE',created:u.created,live:true,verified:u.verified,blocked:u.blocked}; });
+  var liveEmails = {}; lv.forEach(function(u){ liveEmails[u.email]=1; });
+  return lv.concat(shopUsers().filter(function(u){ return !liveEmails[u.email]; })).concat(db.seedUsers);
+}
 
 /* inbox automation — adapted keyword rules */
 var RULES = [
@@ -255,11 +292,11 @@ function hashtags(cat){
 var S = { view:'dashboard', msgId:null, q:'', authed: sessionStorage.getItem('gtm-admin-session')==='1' };
 var AGENTS = [
   {k:'listings',  n:'განცხადებების აგენტი', d:'მოდერაცია და დამტკიცება', m:function(){var c=allListings().filter(function(l){return lStatus(l)==='pending';}).length; return c?c+' მოლოდინში':'';}},
-  {k:'orders',    n:'შეკვეთების აგენტი', d:'შეკვეთების ნაკადი და სტატუსები', m:function(){var c=db.orders.filter(function(o){return o.status==='new';}).length; return c?c+' ახალი':'';}},
+  {k:'orders',    n:'შეკვეთების აგენტი', d:'შეკვეთების ნაკადი და სტატუსები', m:function(){var c=ordersAll().filter(function(o){return o.status==='new';}).length; return c?c+' ახალი':'';}},
   {k:'users',     n:'მომხმარებლების აგენტი', d:'ანგარიშები, ვერიფიკაცია, ბლოკირება', m:function(){var c=allUsers().filter(function(u){return !(db.userFlags[u.email]||{}).verified;}).length; return c?c+' არავერიფიცირებული':'';}},
   {k:'catalog',   n:'კატალოგის აგენტი', d:'ფასები, მარაგი, ხილვადობა', m:function(){var c=db.catalog.filter(function(p){return p.stock<=2;}).length; return c?c+' მცირე მარაგი':'';}},
   {k:'compliance',n:'კანონიერების აგენტი', d:'რეგულირებადი გადაცემების კონტროლი', m:function(){var c=db.compliance.filter(function(x){return x.status==='pending';}).length; return c?c+' შესამოწმებელი':'';}},
-  {k:'inbox',     n:'კომუნიკაციების აგენტი', d:'შეტყობინებები და პასუხის შაბლონები', m:function(){var c=db.messages.filter(function(m){return m.status==='new';}).length; return c?c+' წაუკითხავი':'';}},
+  {k:'inbox',     n:'კომუნიკაციების აგენტი', d:'შეტყობინებები და პასუხის შაბლონები', m:function(){var c=msgsAll().filter(function(m){return m.status==='new';}).length; return c?c+' წაუკითხავი':'';}},
   {k:'marketing', n:'მარკეტინგის აგენტი', d:'სოციალური პოსტები და კამპანიები', m:function(){var c=db.drafts.filter(function(d){return d.status==='draft';}).length; return c?c+' დრაფტი':'';}},
   {k:'pr',        n:'პრ და გავრცელების აგენტი', d:'საიტის ბუსტი სოც. ქსელებში, UTM ბმულები, გაშვების გეგმა', m:function(){var t=PLAYBOOK.length, d=PLAYBOOK.filter(function(x){return db.prChecks[x.id];}).length; return d<t?(t-d)+' დავალება გეგმაში':'';}},
   {k:'social',    n:'სოც. მონიტორინგის აგენტი', d:'FB და Instagram გვერდების მონიტორინგი და მართვა', m:function(){var c=db.mentions.filter(function(m){return m.status==='new';}).length; return c?c+' ახალი კომენტარი':'';}}
@@ -309,7 +346,7 @@ function render(){
     '<div class="foot">geotacticalmarket.com<br>მრავალაგენტიანი მართვის კონსოლი — დემო</div>'+
   '</aside><main class="main">'+
     '<div class="tophead"><h2>'+esc(NAV.find(function(i){return i.k===S.view;}).n)+'</h2>'+
-    '<div class="who"><a href="/" target="_blank">→ მაღაზიის ნახვა</a><span>ადმინი</span><button class="btn sm" data-act="logout">გასვლა</button></div></div>'+
+    '<div class="who">'+(API.on?'<span class="tag green">LIVE ბაზა</span>':'<span class="tag dim">დემო რეჟიმი</span>')+'<a href="/" target="_blank">→ მაღაზიის ნახვა</a><span>ადმინი</span><button class="btn sm" data-act="logout">გასვლა</button></div></div>'+
     body+
   '</main></div>';
   bind();
@@ -318,11 +355,11 @@ function render(){
 /* ---------- views ---------- */
 function vDashboard(){
   var pend=allListings().filter(function(l){return lStatus(l)==='pending';}).length;
-  var newO=db.orders.filter(function(o){return o.status==='new';}).length;
-  var unread=db.messages.filter(function(m){return m.status==='new';}).length;
+  var newO=ordersAll().filter(function(o){return o.status==='new';}).length;
+  var unread=msgsAll().filter(function(m){return m.status==='new';}).length;
   var comp=db.compliance.filter(function(c){return c.status==='pending';}).length;
-  var rev=db.orders.filter(function(o){return o.status!=='cancelled';}).reduce(function(s,o){return s+o.total;},0);
-  var fu=db.messages.filter(followUp).length;
+  var rev=ordersAll().filter(function(o){return o.status!=='cancelled';}).reduce(function(s,o){return s+o.total;},0);
+  var fu=msgsAll().filter(followUp).length;
   return '<div class="cards">'+
     '<div class="card"><div class="k'+(pend?' warn':'')+'">'+pend+'</div><div class="t">განცხადება მოდერაციაზე</div></div>'+
     '<div class="card"><div class="k">'+newO+'</div><div class="t">ახალი შეკვეთა</div></div>'+
@@ -361,7 +398,7 @@ function vOrders(){
   var FLOW={'new':'confirmed','confirmed':'shipped','shipped':'completed'};
   var LBL={'new':['ახალი','gold'],'confirmed':['დადასტურებული','blue'],'shipped':['გზაშია','blue'],'completed':['დასრულებული','green'],'cancelled':['გაუქმებული','red']};
   return '<div class="panel"><div class="pb" style="overflow-x:auto"><table><tr><th>ID</th><th>მყიდველი</th><th>ნივთები</th><th>ჯამი</th><th>სტატუსი</th><th></th></tr>'+
-  db.orders.map(function(o){ var l=LBL[o.status];
+  ordersAll().map(function(o){ var l=LBL[o.status];
     return '<tr><td>'+o.id+'</td><td>'+esc(o.buyer)+'</td><td>'+esc(o.items)+'</td><td>$'+o.total+'</td><td><span class="tag '+l[1]+'">'+l[0]+'</span></td>'+
     '<td><div class="rowact">'+(FLOW[o.status]?'<button class="btn sm red" data-ord="adv" data-id="'+o.id+'">→ '+LBL[FLOW[o.status]][0]+'</button>':'')+
     (o.status!=='completed'&&o.status!=='cancelled'?'<button class="btn sm" data-ord="cancel" data-id="'+o.id+'">გაუქმება</button>':'')+'</div></td></tr>';
@@ -370,11 +407,11 @@ function vOrders(){
 
 function vUsers(){
   return '<div class="panel"><div class="pb" style="overflow-x:auto"><table><tr><th>მომხმარებელი</th><th>ელფოსტა</th><th>ტელეფონი</th><th>წყარო</th><th>სტატუსი</th><th></th></tr>'+
-  allUsers().map(function(u){ var f=db.userFlags[u.email]||{};
+  allUsers().map(function(u){ var f=u.live?{verified:u.verified,blocked:u.blocked}:(db.userFlags[u.email]||{});
     return '<tr><td><strong>'+esc(u.name)+'</strong></td><td>'+esc(u.email)+'</td><td>'+esc(u.phone)+'</td><td><span class="tag dim">'+esc(u.source)+'</span></td>'+
     '<td>'+(f.blocked?'<span class="tag red">დაბლოკილი</span>':f.verified?'<span class="tag green">ვერიფიცირებული</span>':'<span class="tag gold">არავერიფიცირებული</span>')+'</td>'+
-    '<td><div class="rowact"><button class="btn sm '+(f.verified?'':'red')+'" data-usr="verify" data-id="'+esc(u.email)+'">'+(f.verified?'ვერიფიკაციის მოხსნა':'ვერიფიკაცია')+'</button>'+
-    '<button class="btn sm" data-usr="block" data-id="'+esc(u.email)+'">'+(f.blocked?'განბლოკვა':'ბლოკირება')+'</button></div></td></tr>';
+    '<td><div class="rowact"><button class="btn sm '+(f.verified?'':'red')+'" data-usr="verify" data-live="'+(u.live?1:0)+'" data-id="'+esc(u.email)+'">'+(f.verified?'ვერიფიკაციის მოხსნა':'ვერიფიკაცია')+'</button>'+
+    '<button class="btn sm" data-usr="block" data-live="'+(u.live?1:0)+'" data-id="'+esc(u.email)+'">'+(f.blocked?'განბლოკვა':'ბლოკირება')+'</button></div></td></tr>';
   }).join('')+'</table></div></div>'+
   '<p class="empty">„საიტიდან" — geotacticalmarket.com-ზე რეგისტრირებული ანგარიშები (ამავე ბრაუზერიდან).</p>';
 }
@@ -408,9 +445,9 @@ function vCompliance(){
 }
 
 function vInbox(){
-  var m=db.messages.find(function(x){return x.id===S.msgId;});
+  var m=msgsAll().find(function(x){return x.id===S.msgId;});
   return '<div class="split"><div class="panel"><div class="ph"><h3>შეტყობინებები</h3></div><div class="msg-list">'+
-  db.messages.slice().sort(function(a,b){return urgency(b)-urgency(a);}).map(function(x){ var c=classify(x);
+  msgsAll().slice().sort(function(a,b){return urgency(b)-urgency(a);}).map(function(x){ var c=classify(x);
     return '<div class="msg '+(S.msgId===x.id?'on':'')+'" data-msg="'+x.id+'"><div class="s"><span>'+esc(x.from)+'</span>'+
     (x.status==='new'?'<span class="tag gold">ახალი</span>':x.status==='replied'?'<span class="tag green">ნაპასუხები</span>':'<span class="tag blue">მუშავდება</span>')+'</div>'+
     '<div class="p">'+esc(x.subject)+' · <span class="tag dim">'+c.cls+'</span>'+(followUp(x)?' <span class="tag red">follow-up</span>':'')+'</div></div>';
@@ -564,18 +601,37 @@ function bind(){
   var lo=app.querySelector('[data-act="logout"]'); if(lo) lo.addEventListener('click',function(){ S.authed=false; sessionStorage.removeItem('gtm-admin-session'); render(); });
   var q=app.querySelector('[data-tool="q"]'); if(q){ q.addEventListener('input',function(){ S.q=q.value; var pos=q.selectionStart; render(); var nq=app.querySelector('[data-tool="q"]'); nq.focus(); nq.setSelectionRange(pos,pos); }); }
   app.querySelectorAll('[data-lst]').forEach(function(b){ b.addEventListener('click',function(){
+    var lvl=live.listings.find(function(x){return x.id===b.dataset.id;});
+    if(lvl){
+      api('listing-status',{method:'PATCH',body:JSON.stringify({id:b.dataset.id,status:b.dataset.lst==='approve'?'approved':'rejected'})})
+        .then(function(){ log('LIVE განცხადება „'+lvl.name+'" — '+(b.dataset.lst==='approve'?'დამტკიცდა':'უარყოფილია')); return refreshLive(); }).then(render);
+      toast(b.dataset.lst==='approve'?'განცხადება დამტკიცდა':'განცხადება უარყოფილია');
+      return;
+    }
     db.listingStatus[b.dataset.id]= b.dataset.lst==='approve'?'approved':'rejected'; save('listingStatus');
     var l=allListings().find(function(x){return x.id===b.dataset.id;});
     log('განცხადება „'+(l?l.name:b.dataset.id)+'" — '+(b.dataset.lst==='approve'?'დამტკიცდა':'უარყოფილია'));
     toast(b.dataset.lst==='approve'?'განცხადება დამტკიცდა':'განცხადება უარყოფილია'); render();
   }); });
   app.querySelectorAll('[data-ord]').forEach(function(b){ b.addEventListener('click',function(){
-    var o=db.orders.find(function(x){return x.id===b.dataset.id;}); if(!o)return;
-    if(b.dataset.ord==='cancel'){ o.status='cancelled'; } else { o.status={'new':'confirmed','confirmed':'shipped','shipped':'completed'}[o.status]||o.status; }
-    save('orders'); log('შეკვეთა '+o.id+' → '+o.status); render();
+    var o=ordersAll().find(function(x){return x.id===b.dataset.id;}); if(!o)return;
+    var next = b.dataset.ord==='cancel' ? 'cancelled' : ({'new':'confirmed','confirmed':'shipped','shipped':'completed'}[o.status]||o.status);
+    if(o.live){
+      api('order-status',{method:'PATCH',body:JSON.stringify({id:o.id,status:next})}).then(function(){ log('LIVE შეკვეთა '+o.id+' → '+next); return refreshLive(); }).then(render);
+      return;
+    }
+    var lo=db.orders.find(function(x){return x.id===o.id;}); if(!lo)return;
+    lo.status=next; save('orders'); log('შეკვეთა '+o.id+' → '+next); render();
   }); });
   app.querySelectorAll('[data-usr]').forEach(function(b){ b.addEventListener('click',function(){
-    var em=b.dataset.id, f=db.userFlags[em]||{};
+    var em=b.dataset.id;
+    if(b.dataset.live==='1'){
+      var lu=live.users.find(function(x){return x.email===em;}); if(!lu)return;
+      var patch = b.dataset.usr==='verify' ? {email:em,verified:!lu.verified} : {email:em,blocked:!lu.blocked};
+      api('user-flags',{method:'PATCH',body:JSON.stringify(patch)}).then(function(){ log('LIVE მომხმარებელი '+em+' განახლდა'); return refreshLive(); }).then(render);
+      return;
+    }
+    var f=db.userFlags[em]||{};
     if(b.dataset.usr==='verify') f.verified=!f.verified; else f.blocked=!f.blocked;
     db.userFlags[em]=f; save('userFlags'); log('მომხმარებელი '+em+': '+(b.dataset.usr==='verify'?(f.verified?'ვერიფიცირებულია':'ვერიფიკაცია მოხსნილია'):(f.blocked?'დაბლოკილია':'განბლოკილია'))); render();
   }); });
@@ -598,9 +654,15 @@ function bind(){
     var x=db.messages.find(function(y){return y.id===S.msgId;}); if(x&&x.status==='new'){ x.status='in progress'; save('messages'); } render();
   }); });
   app.querySelectorAll('[data-msg-act]').forEach(function(b){ b.addEventListener('click',function(){
-    var x=db.messages.find(function(y){return y.id===b.dataset.id;}); if(!x)return;
-    x.status={reply:'replied',progress:'in progress',close:'closed'}[b.dataset.msgAct];
-    save('messages'); log('შეტყობინება „'+x.subject+'" → '+x.status); toast(b.dataset.msgAct==='reply'?'პასუხი გაგზავნილია (დემო)':'სტატუსი განახლდა'); render();
+    var x=msgsAll().find(function(y){return y.id===b.dataset.id;}); if(!x)return;
+    var next={reply:'replied',progress:'in progress',close:'closed'}[b.dataset.msgAct];
+    if(x.live){
+      api('message-status',{method:'PATCH',body:JSON.stringify({id:x.id,status:next})}).then(function(){ log('LIVE შეტყობინება → '+next); return refreshLive(); }).then(render);
+      toast('სტატუსი განახლდა'); return;
+    }
+    var lx=db.messages.find(function(y){return y.id===x.id;}); if(!lx)return;
+    lx.status=next;
+    save('messages'); log('შეტყობინება „'+lx.subject+'" → '+lx.status); toast(b.dataset.msgAct==='reply'?'პასუხი გაგზავნილია (დემო)':'სტატუსი განახლდა'); render();
   }); });
   var df=app.querySelector('#draft-form');
   if(df){

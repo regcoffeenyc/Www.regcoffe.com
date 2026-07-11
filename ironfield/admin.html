@@ -168,6 +168,16 @@ var SEED = {
     {id:'d1', title:'ზაფხულის ფასდაკლება ოპტიკაზე', platforms:['facebook','instagram'], category:'promo', ge:'ზუსტი ოპტიკა −15% მთელი კვირა. მხოლოდ geotacticalmarket.com-ზე.', en:'Precision optics −15% all week. Only at geotacticalmarket.com.', status:'scheduled', scheduled:'2026-07-14T09:00:00Z'},
     {id:'d2', title:'როგორ მუშაობს კანონიერი გადაცემა', platforms:['facebook'], category:'safety', ge:'რეგულირებადი ნივთები მხოლოდ კანონით დადგენილი წესით გადაეცემა — გაეცანით პროცესს.', en:'', status:'draft', scheduled:''}
   ],
+  mentions: [
+    {id:'sm1', platform:'facebook', author:'ლუკა ბერაია', text:'მაგარი საიტია! მიწოდება რეგიონებშიც გაქვთ?', sentiment:'positive', status:'new', at:'2026-07-11T08:10:00Z'},
+    {id:'sm2', platform:'instagram', author:'@tacticalgeo_fan', text:'ფასები ცოტა მაღალია მეზობლებთან შედარებით 🤔', sentiment:'negative', status:'new', at:'2026-07-10T19:30:00Z'},
+    {id:'sm3', platform:'facebook', author:'გიორგი კვარაცხელია', text:'Defender Pro ავიღე — ხმის დაცვა ნამდვილად კარგია. გირჩევთ!', sentiment:'positive', status:'replied', at:'2026-07-09T12:00:00Z'},
+    {id:'sm4', platform:'instagram', author:'@geo_hunter22', text:'ბინოკლები როდის შემოვა მარაგში?', sentiment:'neutral', status:'new', at:'2026-07-11T06:45:00Z'}
+  ],
+  social: {
+    facebook: {connected:false, page:'', followers:1240, reach7:[420,510,380,640,720,690,810], engagement:4.2},
+    instagram:{connected:false, page:'', followers:860,  reach7:[310,290,350,400,520,480,560], engagement:5.1}
+  },
   activity: [
     {t:'2026-07-11T07:12:00Z', x:'ახალი შეკვეთა o-1042 — ლევან მაისურაძე ($159)'},
     {t:'2026-07-11T06:22:00Z', x:'ახალი განცხადება მოდერაციაზე: ტაქტიკური ჟილეტი MOLLE'},
@@ -192,10 +202,13 @@ var db = {
   messages: store('messages', SEED.messages),
   compliance: store('compliance', SEED.compliance),
   drafts: store('drafts', SEED.drafts),
+  mentions: store('mentions', SEED.mentions),
+  social: store('social', SEED.social),
+  prChecks: store('pr-checks', {}),
   activity: store('activity', SEED.activity),
   auth: store('auth', {user:'admin', p: btoa('tactical2026')})
 };
-function save(k){ LS.set('gtm-admin-'+({listingStatus:'listing-status',userFlags:'user-flags',seedUsers:'seed-users'}[k]||k), db[k]); }
+function save(k){ LS.set('gtm-admin-'+({listingStatus:'listing-status',userFlags:'user-flags',seedUsers:'seed-users',prChecks:'pr-checks'}[k]||k), db[k]); }
 function log(x){ db.activity.unshift({t:new Date().toISOString(), x:x}); db.activity=db.activity.slice(0,40); save('activity'); }
 
 /* shop integration: users registered on the storefront + listings posted there */
@@ -247,10 +260,29 @@ var AGENTS = [
   {k:'catalog',   n:'კატალოგის აგენტი', d:'ფასები, მარაგი, ხილვადობა', m:function(){var c=db.catalog.filter(function(p){return p.stock<=2;}).length; return c?c+' მცირე მარაგი':'';}},
   {k:'compliance',n:'კანონიერების აგენტი', d:'რეგულირებადი გადაცემების კონტროლი', m:function(){var c=db.compliance.filter(function(x){return x.status==='pending';}).length; return c?c+' შესამოწმებელი':'';}},
   {k:'inbox',     n:'კომუნიკაციების აგენტი', d:'შეტყობინებები და პასუხის შაბლონები', m:function(){var c=db.messages.filter(function(m){return m.status==='new';}).length; return c?c+' წაუკითხავი':'';}},
-  {k:'marketing', n:'მარკეტინგის აგენტი', d:'სოციალური პოსტები და კამპანიები', m:function(){var c=db.drafts.filter(function(d){return d.status==='draft';}).length; return c?c+' დრაფტი':'';}}
+  {k:'marketing', n:'მარკეტინგის აგენტი', d:'სოციალური პოსტები და კამპანიები', m:function(){var c=db.drafts.filter(function(d){return d.status==='draft';}).length; return c?c+' დრაფტი':'';}},
+  {k:'pr',        n:'პრ და გავრცელების აგენტი', d:'საიტის ბუსტი სოც. ქსელებში, UTM ბმულები, გაშვების გეგმა', m:function(){var t=PLAYBOOK.length, d=PLAYBOOK.filter(function(x){return db.prChecks[x.id];}).length; return d<t?(t-d)+' დავალება გეგმაში':'';}},
+  {k:'social',    n:'სოც. მონიტორინგის აგენტი', d:'FB და Instagram გვერდების მონიტორინგი და მართვა', m:function(){var c=db.mentions.filter(function(m){return m.status==='new';}).length; return c?c+' ახალი კომენტარი':'';}}
 ];
-var NAV = [{k:'dashboard',n:'სამეთაურო პანელი'}].concat(AGENTS.map(function(a){return {k:a.k,n:a.n.replace(' აგენტი','ები').replace('კომუნიკაციებიები','შეტყობინებები')};})).concat([{k:'settings',n:'პარამეტრები'}]);
-NAV[1].n='განცხადებები'; NAV[2].n='შეკვეთები'; NAV[3].n='მომხმარებლები'; NAV[4].n='კატალოგი'; NAV[5].n='კანონიერება'; NAV[6].n='შეტყობინებები'; NAV[7].n='მარკეტინგი';
+var PLAYBOOK = [
+  {id:'fb',   t:'Facebook გვერდის შექმნა — GeoTactical Market'},
+  {id:'ig',   t:'Instagram Business ანგარიშის შექმნა და FB გვერდთან დაკავშირება'},
+  {id:'meta', t:'Meta Business Suite-ში ორივე არხის დაერთება (მართვა ერთი პანელიდან)'},
+  {id:'lnch', t:'გაშვების ანონსი: პოსტი ორივე არხზე + პირველი აქცია'},
+  {id:'boost',t:'პირველი დაბუსტული პოსტი (მიზნობრივი: ნადირობა/სპორტული სროლა, საქართველო)'},
+  {id:'seo',  t:'Google Search Console + Google Business Profile რეგისტრაცია'},
+  {id:'comm', t:'თემატურ ჯგუფებში/ფორუმებზე გაზიარება (მონადირეთა და სასროლეთის თემები)'},
+  {id:'infl', t:'თანამშრომლობა: სასროლეთის კლუბები და ინფლუენსერები'},
+  {id:'tiktok',t:'TikTok/Reels ვიდეო-კონტენტის დაწყება (აღჭურვილობის მიმოხილვები)'},
+  {id:'cal',  t:'ყოველთვიური კონტენტ-კალენდრის შედგენა მარკეტინგის აგენტში'}
+];
+var NAV = [
+  {k:'dashboard',n:'სამეთაურო პანელი'},
+  {k:'listings',n:'განცხადებები'},{k:'orders',n:'შეკვეთები'},{k:'users',n:'მომხმარებლები'},
+  {k:'catalog',n:'კატალოგი'},{k:'compliance',n:'კანონიერება'},{k:'inbox',n:'შეტყობინებები'},
+  {k:'marketing',n:'მარკეტინგი'},{k:'pr',n:'პრ / გავრცელება'},{k:'social',n:'სოც. მონიტორინგი'},
+  {k:'settings',n:'პარამეტრები'}
+];
 
 var app=document.getElementById('app');
 function toast(x){ var t=document.createElement('div'); t.className='toast'; t.textContent=x; document.body.appendChild(t); setTimeout(function(){t.remove();},2400); }
@@ -266,7 +298,9 @@ function render(){
     S.view==='catalog'  ? vCatalog() :
     S.view==='compliance'?vCompliance() :
     S.view==='inbox'    ? vInbox() :
-    S.view==='marketing'? vMarketing() : vSettings();
+    S.view==='marketing'? vMarketing() :
+    S.view==='pr'       ? vPR() :
+    S.view==='social'   ? vSocial() : vSettings();
   app.innerHTML =
   '<div class="shell"><aside class="side">'+
     '<div class="brandline"><span class="dot"></span><span>GEOTACTICAL ADMIN</span></div>'+
@@ -415,6 +449,85 @@ function vMarketing(){
   }).join('')+'</table></div></div></div>';
 }
 
+function utmUrl(path, ch){
+  var base='https://geotacticalmarket.com'+(path&&path[0]==='/'?path:'/'+(path||''));
+  return base+(base.indexOf('?')>-1?'&':'?')+'utm_source='+ch+'&utm_medium=social&utm_campaign=launch';
+}
+var SHARE_TEXT='GeoTactical Market — საველე, სასროლეთისა და სანადირო აღჭურვილობის მარკეტპლეისი 🇬🇪';
+function shareLinks(url){
+  var u=encodeURIComponent(url), t=encodeURIComponent(SHARE_TEXT);
+  return [
+    {n:'Facebook', h:'https://www.facebook.com/sharer/sharer.php?u='+u},
+    {n:'X / Twitter', h:'https://twitter.com/intent/tweet?url='+u+'&text='+t},
+    {n:'Telegram', h:'https://t.me/share/url?url='+u+'&text='+t},
+    {n:'WhatsApp', h:'https://wa.me/?text='+t+'%20'+u},
+    {n:'LinkedIn', h:'https://www.linkedin.com/sharing/share-offsite/?url='+u}
+  ];
+}
+function vPR(){
+  var done=PLAYBOOK.filter(function(x){return db.prChecks[x.id];}).length;
+  var url=utmUrl(S.prPath||'/', S.prCh||'facebook');
+  return '<div class="grid2"><div>'+
+  '<div class="panel"><div class="ph"><h3>საიტის გაზიარება — დაბუსტე ყველგან</h3></div><div class="pb">'+
+    '<p style="color:var(--muted);font-size:.86rem;margin-bottom:10px">ღილაკები ხსნის რეალურ გაზიარების ფანჯრებს მზა ტექსტით და UTM ბმულით — შედეგები ჩანს ანალიტიკაში წყაროების მიხედვით.</p>'+
+    '<div class="rowact">'+shareLinks(url).map(function(s){return '<a class="btn red" style="text-decoration:none" target="_blank" rel="noopener" href="'+s.h+'">'+s.n+'</a>';}).join('')+'</div>'+
+  '</div></div>'+
+  '<div class="panel" style="margin-top:14px"><div class="ph"><h3>UTM ბმულის გენერატორი</h3></div><div class="pb">'+
+    '<div class="frow"><div><label class="fl">გვერდი</label><input data-pr="path" value="'+esc(S.prPath||'/')+'" placeholder="/ ან /#/shop"></div>'+
+    '<div><label class="fl">არხი (utm_source)</label><select data-pr="ch">'+['facebook','instagram','tiktok','telegram','whatsapp','twitter','linkedin','youtube'].map(function(x){return '<option'+(S.prCh===x?' selected':'')+'>'+x+'</option>';}).join('')+'</select></div></div>'+
+    '<label class="fl">მზა ბმული</label><input readonly id="utm-out" value="'+esc(url)+'">'+
+    '<div class="rowact" style="margin-top:10px"><button class="btn red" data-pr="copy">კოპირება</button></div>'+
+  '</div></div>'+
+  '<div class="panel" style="margin-top:14px"><div class="ph"><h3>მზა სარეკლამო ტექსტი</h3></div><div class="pb">'+
+    '<textarea rows="3" id="pr-blurb">'+esc(SHARE_TEXT+' — ვერიფიცირებული გამყიდველები, კანონიერი გადაცემა, უფასო მიწოდება. '+url)+'</textarea>'+
+    '<div class="rowact" style="margin-top:8px"><button class="btn" data-pr="copy-blurb">ტექსტის კოპირება</button></div>'+
+  '</div></div>'+
+  '</div><div>'+
+  '<div class="panel"><div class="ph"><h3>გაშვების გეგმა</h3><span class="tag '+(done===PLAYBOOK.length?'green':'gold')+'">'+done+' / '+PLAYBOOK.length+'</span></div><div class="pb">'+
+    PLAYBOOK.map(function(x){return '<label class="chk"><input type="checkbox" data-pr-chk="'+x.id+'" '+(db.prChecks[x.id]?'checked':'')+'> '+esc(x.t)+'</label>';}).join('')+
+  '</div></div></div></div>';
+}
+function vSocial(){
+  function acct(k, label){
+    var a=db.social[k];
+    var max=Math.max.apply(null,a.reach7);
+    return '<div class="panel" style="margin-bottom:14px"><div class="ph"><h3>'+label+'</h3>'+
+    (a.connected?'<span class="tag green">დაკავშირებულია: '+esc(a.page)+'</span>':'<span class="tag gold">არ არის დაკავშირებული</span>')+'</div><div class="pb">'+
+    '<div class="cards" style="margin-bottom:12px">'+
+      '<div class="card"><div class="k">'+a.followers.toLocaleString()+'</div><div class="t">გამომწერი</div></div>'+
+      '<div class="card"><div class="k">'+a.reach7.reduce(function(s,x){return s+x;},0).toLocaleString()+'</div><div class="t">Reach — 7 დღე</div></div>'+
+      '<div class="card"><div class="k">'+a.engagement+'%</div><div class="t">ჩართულობა</div></div>'+
+    '</div>'+
+    '<label class="fl">Reach ბოლო 7 დღე</label>'+
+    '<div style="display:flex;gap:5px;align-items:flex-end;height:70px;margin:6px 0 12px">'+
+      a.reach7.map(function(v){return '<div title="'+v+'" style="flex:1;background:'+(k==='facebook'?'#4a76c9':'#c8102e')+';height:'+Math.round(v/max*100)+'%"></div>';}).join('')+
+    '</div>'+
+    (a.connected?
+      '<div class="rowact"><button class="btn" data-soc="disconnect" data-id="'+k+'">გათიშვა</button></div>'
+    : '<form data-soc-form="'+k+'"><div class="frow"><div><label class="fl">გვერდის სახელი / ID</label><input name="page" placeholder="'+(k==='facebook'?'GeoTactical Market':'@geotacticalmarket')+'" required></div>'+
+      '<div><label class="fl">წვდომის ტოკენი (Meta)</label><input name="token" type="password" placeholder="EAAB..."></div></div>'+
+      '<div class="rowact" style="margin-top:10px"><button class="btn red" type="submit">დაკავშირება</button></div>'+
+      '<p class="empty">დემო: მეტრიკები საილუსტრაციოა. რეალური მონაცემებისთვის საჭიროა Meta Business Suite-ის აპი და გვერდის ტოკენი (Graph API).</p></form>')+
+    '</div></div>';
+  }
+  return '<div class="grid2"><div>'+acct('facebook','Facebook გვერდი')+acct('instagram','Instagram')+'</div>'+
+  '<div><div class="panel"><div class="ph"><h3>კომენტარები და მოხსენიებები</h3></div><div class="pb">'+
+  (db.mentions.length? db.mentions.map(function(m){
+    var s={positive:['დადებითი','green'],negative:['უარყოფითი','red'],neutral:['ნეიტრალური','dim']}[m.sentiment];
+    return '<div style="border:1px solid var(--line);padding:11px;margin-bottom:10px">'+
+    '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><strong>'+esc(m.author)+'</strong>'+
+    '<span><span class="tag dim">'+m.platform+'</span> <span class="tag '+s[1]+'">'+s[0]+'</span> '+
+    (m.status==='new'?'<span class="tag gold">ახალი</span>':m.status==='replied'?'<span class="tag green">ნაპასუხები</span>':'<span class="tag dim">დამალული</span>')+'</span></div>'+
+    '<p style="color:var(--muted);font-size:.86rem;margin:6px 0">'+esc(m.text)+'</p>'+
+    '<div class="rowact">'+(m.status!=='replied'?'<button class="btn sm red" data-men="reply" data-id="'+m.id+'">პასუხი (დემო)</button>':'')+
+    (m.status!=='hidden'?'<button class="btn sm" data-men="hide" data-id="'+m.id+'">დამალვა</button>':'<button class="btn sm" data-men="unhide" data-id="'+m.id+'">აღდგენა</button>')+'</div></div>';
+  }).join(''):'<p class="empty">კომენტარები არ არის.</p>')+
+  '</div></div>'+
+  '<div class="panel" style="margin-top:14px"><div class="ph"><h3>საუკეთესო დრო პოსტისთვის</h3></div><div class="pb"><dl class="kv">'+
+  '<dt>Facebook</dt><dd>ოთხ–პარ, 19:00–21:00</dd><dt>Instagram</dt><dd>შაბ–კვ, 12:00–14:00</dd></dl>'+
+  '<p class="empty">დაგეგმეთ პოსტები მარკეტინგის აგენტში — <a href="#" data-v="marketing">გახსნა</a></p></div></div>'+
+  '</div></div>';
+}
 function vSettings(){
   return '<div class="grid2"><div class="panel"><div class="ph"><h3>მაღაზიის ინფორმაცია</h3></div><div class="pb">'+
     '<dl class="kv"><dt>ბრენდი</dt><dd>GeoTactical Market</dd><dt>დომენი</dt><dd>geotacticalmarket.com</dd><dt>ენა</dt><dd>ქართული</dd><dt>რეჟიმი</dt><dd>დემო — მონაცემები ინახება ამ ბრაუზერში</dd></dl>'+
@@ -502,6 +615,28 @@ function bind(){
     else if(b.dataset.dr==='approve') db.drafts[i].status=db.drafts[i].scheduled?'scheduled':'approved';
     else if(b.dataset.dr==='publish') db.drafts[i].status='published';
     save('drafts'); render();
+  }); });
+  app.querySelectorAll('[data-pr]').forEach(function(el){
+    var act=el.dataset.pr;
+    if(act==='path'||act==='ch'){ el.addEventListener('change',function(){ if(act==='path')S.prPath=el.value; else S.prCh=el.value; render(); }); }
+    if(act==='copy'){ el.addEventListener('click',function(){ var o=document.getElementById('utm-out'); o.select(); try{navigator.clipboard.writeText(o.value);}catch(e){document.execCommand('copy');} toast('ბმული დაკოპირდა'); }); }
+    if(act==='copy-blurb'){ el.addEventListener('click',function(){ var o=document.getElementById('pr-blurb'); o.select(); try{navigator.clipboard.writeText(o.value);}catch(e){document.execCommand('copy');} toast('ტექსტი დაკოპირდა'); }); }
+  });
+  app.querySelectorAll('[data-pr-chk]').forEach(function(cb){ cb.addEventListener('change',function(){
+    db.prChecks[cb.dataset.prChk]=cb.checked; save('prChecks'); render();
+  }); });
+  app.querySelectorAll('[data-soc-form]').forEach(function(f){ f.addEventListener('submit',function(e){
+    e.preventDefault(); var k=f.dataset.socForm;
+    db.social[k].connected=true; db.social[k].page=f.page.value.trim();
+    save('social'); log((k==='facebook'?'Facebook':'Instagram')+' გვერდი დაკავშირდა: '+f.page.value.trim()); toast('დაკავშირებულია (დემო)'); render();
+  }); });
+  app.querySelectorAll('[data-soc]').forEach(function(b){ b.addEventListener('click',function(){
+    db.social[b.dataset.id].connected=false; db.social[b.dataset.id].page=''; save('social'); render();
+  }); });
+  app.querySelectorAll('[data-men]').forEach(function(b){ b.addEventListener('click',function(){
+    var m=db.mentions.find(function(x){return x.id===b.dataset.id;}); if(!m)return;
+    m.status={reply:'replied',hide:'hidden',unhide:'new'}[b.dataset.men];
+    save('mentions'); log('სოც. კომენტარი ('+m.platform+', '+m.author+') → '+m.status); render();
   }); });
   var pf=app.querySelector('#pass-form');
   if(pf) pf.addEventListener('submit',function(e){ e.preventDefault();

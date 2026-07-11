@@ -94,6 +94,9 @@ module.exports = async function handler(req, res) {
       if (connected) { try { await redis(['SET', 'gtm:ping', '1']); dbOk = true; } catch (e) { dbOk = false; } }
       return json(res, 200, { ok: true, connected: dbOk, ts: Date.now() });
     }
+    if (a === 'admin-check') {
+      return json(res, 200, { ok: true, admin: isAdmin(req) });
+    }
     if (!connected) return json(res, 503, { ok: false, error: 'database-not-attached' });
 
     /* -- auth -- */

@@ -649,13 +649,23 @@ function renderLogin(){
   '<form id="login-form"><label>მომხმარებელი</label><input name="u" autocomplete="username" required>'+
   '<label>პაროლი</label><input type="password" name="p" autocomplete="current-password" required>'+
   '<div class="err"></div><button class="btn red" style="width:100%;margin-top:8px" type="submit">შესვლა</button></form>'+
-  '<div class="note">დემო წვდომა: admin / tactical2026 (შეცვალეთ პარამეტრებში)</div>'+
+  '<div class="note">შესვლა: admin / თქვენი ADMIN_KEY პაროლი (დემო რეჟიმში: tactical2026)</div>'+
   '</div></div>';
   document.getElementById('login-form').addEventListener('submit',function(e){
     e.preventDefault();
     var u=e.target.u.value.trim(), p=e.target.p.value;
-    if(u===db.auth.user && btoa(p)===db.auth.p){ S.authed=true; sessionStorage.setItem('gtm-admin-session','1'); log('ადმინი შემოვიდა კონსოლში'); render(); }
-    else e.target.parentElement.querySelector('.err').textContent='მომხმარებელი ან პაროლი არასწორია.';
+    var errEl=e.target.parentElement.querySelector('.err');
+    var pass=function(){ S.authed=true; sessionStorage.setItem('gtm-admin-session','1'); log('ადმინი შემოვიდა კონსოლში'); render(); };
+    var fail=function(m){ errEl.textContent=m||'მომხმარებელი ან პაროლი არასწორია.'; };
+    if(u!==db.auth.user) return fail();
+    /* when the backend is live the password must be the server ADMIN_KEY —
+       verify it there and keep the local copy in sync for api() calls */
+    errEl.textContent='';
+    fetch('/api/gtm?a=admin-check',{headers:{'x-admin-key':p}}).then(function(r){return r.json();}).then(function(h){
+      if(h&&h.admin){ db.auth.p=btoa(p); save('auth'); pass(); }
+      else if(h&&h.ok===true) fail('პაროლი არასწორია — შეიყვანეთ თქვენი ADMIN_KEY პაროლი.');
+      else if(btoa(p)===db.auth.p) pass(); else fail();
+    }).catch(function(){ if(btoa(p)===db.auth.p) pass(); else fail(); });
   });
 }
 
@@ -775,12 +785,15 @@ function bind(){
     if(!items.length){ note.textContent='ვერცერთი ვალიდური ნივთი ვერ მოიძებნა.'; return; }
     if(API.on){
       note.textContent='იტვირთება...';
-      var done=0, fail=0;
+      var done=0, fail=0, lastErr='';
       var run=items.reduce(function(pr,x){ return pr.then(function(){
         return api('listings',{method:'POST',body:JSON.stringify({name:x.name,price:+x.price,cat:x.cat||'—',cond:x.cond||'ახალი',desc:x.desc||'',regulated:!!x.regulated,cur:'GEL'})})
-          .then(function(r){ if(r&&r.id)done++; else fail++; }).catch(function(){ fail++; });
+          .then(function(r){ if(r&&r.id)done++; else { fail++; lastErr=(r&&r.error)||''; } }).catch(function(){ fail++; });
       });}, Promise.resolve());
-      run.then(function(){ log('კატალოგის იმპორტი: '+done+' ნივთი გამოქვეყნდა'+(fail?(', '+fail+' შეცდომა'):'')); toast(done+' ნივთი გამოქვეყნდა'); return refreshLive(); }).then(render);
+      run.then(function(){
+        if(!done && lastErr==='login-required'){ note.textContent='ავტორიზაცია ვერ მოხერხდა — გამოდით და შედით ხელახლა ADMIN_KEY პაროლით, მერე ისევ დააჭირეთ იმპორტს.'; toast('შესვლა ADMIN_KEY-თია საჭირო'); return; }
+        log('კატალოგის იმპორტი: '+done+' ნივთი გამოქვეყნდა'+(fail?(', '+fail+' შეცდომა'):'')); toast(done+' ნივთი გამოქვეყნდა'); return refreshLive().then(render);
+      });
     } else {
       items.forEach(function(x){ db.listings.unshift({id:'imp'+Date.now().toString(36)+Math.random().toString(36).slice(2,5), name:x.name, seller:'GeoTactical Market-ის მაღაზია', price:+x.price, cat:x.cat||'—', cond:x.cond||'ახალი', regulated:!!x.regulated, created:new Date().toISOString()}); });
       save('listings'); log('კატალოგის იმპორტი (დემო): '+items.length+' ნივთი'); toast(items.length+' ნივთი დაემატა'); render();
@@ -788,6 +801,7 @@ function bind(){
   });
   var pf=app.querySelector('#pass-form');
   if(pf) pf.addEventListener('submit',function(e){ e.preventDefault();
+    if(API.on) return toast('ლაივ რეჟიმში პაროლი იცვლება Vercel-ში: Settings → Environment Variables → ADMIN_KEY');
     if(pf.p1.value.length<8) return toast('პაროლი ძალიან მოკლეა');
     if(pf.p1.value!==pf.p2.value) return toast('პაროლები არ ემთხვევა');
     db.auth.p=btoa(pf.p1.value); save('auth'); toast('პაროლი შეცვლილია'); pf.reset();

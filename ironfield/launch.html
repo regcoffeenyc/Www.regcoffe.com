@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="ka">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>GeoTactical Market — გაშვების კოპილოტი</title>
+<style>
+:root{--bg:#14170f;--panel:#1e2318;--line:#2c3126;--line2:#363c2e;--ink:#e9e7dc;--ink2:#f2f0e6;--muted:#a9ae9d;--dim:#8d947f;--red:#c8102e;--red2:#a30d25;--green:#5ecb7d;--gold:#f4a83d;
+--body:"Noto Sans Georgian","DejaVu Sans",system-ui,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.55}
+.wrap{max-width:760px;margin:0 auto;padding:26px 18px 60px}
+.brand{display:flex;align-items:center;gap:9px;margin-bottom:6px}
+.brand .dot{width:12px;height:12px;background:var(--red)}
+.brand span{font-weight:800;letter-spacing:.13em;font-size:.82rem;color:var(--ink2)}
+h1{font-size:1.55rem;color:var(--ink2);line-height:1.25;margin:8px 0 4px}
+.sub{color:var(--muted);font-size:.92rem;margin-bottom:20px}
+.bar{height:8px;background:var(--panel);border:1px solid var(--line);margin-bottom:6px}
+.bar i{display:block;height:100%;background:var(--green);transition:width .3s}
+.bartext{color:var(--dim);font-size:.78rem;margin-bottom:20px}
+.step{background:var(--panel);border:1px solid var(--line);margin-bottom:14px}
+.step.done{opacity:.66}
+.step.locked{opacity:.45;pointer-events:none;filter:grayscale(.4)}
+.sh{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer}
+.snum{flex:none;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:800;background:var(--bg);border:1px solid var(--line2);color:var(--muted)}
+.step.done .snum{background:var(--green);border-color:var(--green);color:#0d1108}
+.step.active .snum{background:var(--red);border-color:var(--red);color:#fff}
+.sh h2{font-size:1.02rem;color:var(--ink2);flex:1}
+.sh .st{font-size:.74rem;color:var(--dim)}
+.sb{display:none;border-top:1px solid var(--line);padding:16px}
+.step.active .sb{display:block}
+.sb p{color:var(--muted);font-size:.9rem;margin-bottom:12px}
+.kvrow{display:flex;align-items:center;gap:8px;margin:8px 0}
+.kvrow label{flex:none;width:150px;font-size:.76rem;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.04em}
+.kvrow input{flex:1;min-width:0;background:var(--bg);border:1px solid var(--line2);color:var(--ink);padding:9px 11px;font-family:var(--body);font-size:.88rem}
+.copy{flex:none;border:1px solid var(--line2);background:transparent;color:var(--muted);padding:8px 12px;font-size:.78rem;font-weight:700;cursor:pointer;font-family:var(--body)}
+.copy:hover{color:var(--ink);border-color:var(--dim)}
+.copy.ok{color:#0d1108;background:var(--green);border-color:var(--green)}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line2);background:transparent;color:var(--ink);padding:11px 18px;font-size:.88rem;font-weight:700;cursor:pointer;text-decoration:none;font-family:var(--body)}
+.btn.red{background:var(--red);border-color:var(--red);color:#fff}
+.btn.red:hover{background:var(--red2)}
+.btn.green{background:var(--green);border-color:var(--green);color:#0d1108}
+.note{font-size:.78rem;color:var(--dim);margin-top:12px;border-left:3px solid var(--line2);padding-left:10px}
+.donebox{background:var(--panel);border:1px solid var(--green);padding:26px;text-align:center;margin-top:8px}
+.donebox h2{color:var(--green);font-size:1.3rem;margin-bottom:8px}
+.donebox p{color:var(--muted);font-size:.9rem}
+.reset{margin-top:26px;text-align:center}
+.reset button{border:0;background:transparent;color:var(--dim);font-size:.76rem;cursor:pointer;text-decoration:underline;font-family:var(--body)}
+a{color:#6db3ea}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand"><span class="dot"></span><span>GEOTACTICAL LAUNCH COPILOT</span></div>
+  <h1>გაშვების კოპილოტი</h1>
+  <div class="sub">ეს გვერდი თქვენს ბრაუზერში მუშაობს: თვითონ ხსნის საჭირო საიტებს, გაძლევთ მზა ჩასაკოპირებელ მნიშვნელობებს და ყოველ ნაბიჯზე ელოდება თქვენს დადასტურებას.</div>
+  <div class="bar"><i id="bar" style="width:0%"></i></div>
+  <div class="bartext" id="bartext"></div>
+  <div id="steps"></div>
+  <div class="reset"><button id="reset">პროგრესის განულება</button></div>
+</div>
+<script>
+(function(){
+'use strict';
+var STEPS=[
+ {id:'mail', t:'ბიზნეს Gmail-ის შექმნა', url:'https://accounts.google.com/signup', urlLabel:'Gmail რეგისტრაციის გახსნა',
+  d:'ეს ანგარიში გახდება Facebook-ის, Instagram-ის და Meta Business-ის საძირკველი. პაროლს და ტელეფონის კოდს მხოლოდ თქვენ შეიყვანთ — ეს არავის გაუზიაროთ.',
+  fields:[['First name','GeoTactical'],['Last name','Market'],['Username','geotacticalmarket'],['სათადარიგო ვარიანტი','geotactical.market']],
+  note:'რეგისტრაციის შემდეგ აუცილებლად ჩართეთ ორფაქტორიანი დაცვა (2FA) და დაამატეთ სარეზერვო იმეილი.'},
+ {id:'fb', t:'Facebook გვერდის შექმნა', url:'https://www.facebook.com/pages/create', urlLabel:'FB გვერდის შექმნის გახსნა',
+  d:'შედით Facebook-ზე ახალი Gmail-ით (ან არსებული ანგარიშით) და შექმენით გვერდი ამ მნიშვნელობებით:',
+  fields:[['Page name','GeoTactical Market'],['Category','Shopping & Retail'],['Bio','საველე, სასროლეთისა და სანადირო აღჭურვილობის მარკეტპლეისი 🇬🇪 ვერიფიცირებული გამყიდველები · კანონიერი გადაცემა'],['Website','https://geotacticalmarket.com/?utm_source=facebook&utm_medium=social&utm_campaign=launch']],
+  note:'პროფილის ფოტოდ გამოიყენეთ ლოგო; ქავერად — პროდუქტის ფოტო საიტიდან.'},
+ {id:'ig', t:'Instagram Business ანგარიში', url:'https://www.instagram.com/accounts/emailsignup/', urlLabel:'Instagram რეგისტრაციის გახსნა',
+  d:'დარეგისტრირდით იმავე Gmail-ით, შემდეგ: Settings → Account type and tools → Switch to professional account → Business.',
+  fields:[['Username','geotacticalmarket'],['Full name','GeoTactical Market'],['Bio','🎯 ტაქტიკური და სანადირო აღჭურვილობა\n✅ ვერიფიცირებული გამყიდველები\n🇬🇪 მიწოდება საქართველოში'],['Website','https://geotacticalmarket.com/?utm_source=instagram&utm_medium=social&utm_campaign=launch']],
+  note:'ბოლო ნაბიჯად დაუკავშირეთ Facebook გვერდს (Business ანგარიშად გადართვისას შემოგთავაზებთ).'},
+ {id:'meta', t:'Meta Business Suite', url:'https://business.facebook.com', urlLabel:'Business Suite-ის გახსნა',
+  d:'შედით Facebook ანგარიშით — თქვენი გვერდი და Instagram ავტომატურად გამოჩნდება ერთ სამართავ პანელში. აქედან შეძლებთ პოსტების დაგეგმვას ორივე არხზე ერთდროულად და კომენტარების ერთ ინბოქსში ნახვას.',
+  fields:[],
+  note:'აქვე ჩანს სტატისტიკა (reach, ჩართულობა) — იგივე რასაც ადმინის სოც. მონიტორინგის აგენტი აჩვენებს დემოში.'},
+ {id:'post', t:'პირველი პოსტი ორივე არხზე', url:'https://business.facebook.com/latest/composer', urlLabel:'პოსტის შექმნის გახსნა',
+  d:'ჩასვით ეს ტექსტი, მიაბით საიტის ბმული და მონიშნეთ ორივე არხი (FB + IG):',
+  fields:[['პოსტის ტექსტი','🎯 გაიხსნა GeoTactical Market — საველე, სასროლეთისა და სანადირო აღჭურვილობის ქართული მარკეტპლეისი!\n\n✅ ვერიფიცირებული გამყიდველები\n✅ კანონიერი გადაცემა რეგულირებად ნივთებზე\n✅ ახალი და მეორადი აღჭურვილობა\n\n👉 geotacticalmarket.com'],['ბმული','https://geotacticalmarket.com/?utm_source=facebook&utm_medium=social&utm_campaign=launch']],
+  note:'საუკეთესო დროა ოთხ–პარ 19:00–21:00 (FB) და შაბ–კვ 12:00–14:00 (IG).'},
+ {id:'boost', t:'პირველი დაბუსტვა (რეკლამა)', url:'https://business.facebook.com/latest/ad_center', urlLabel:'Ad Center-ის გახსნა',
+  d:'დაბუსტეთ პირველი პოსტი მცირე ბიუჯეტით ტესტისთვის:',
+  fields:[['აუდიტორია','საქართველო · 21+ · ინტერესები: hunting, shooting sports, outdoor gear'],['ბიუჯეტი','$3–5/დღე · 5 დღე (ტესტი)'],['მიზანი','Website traffic → geotacticalmarket.com']],
+  note:'იარაღთან დაკავშირებულ კონტენტზე Meta-ს რეკლამის წესები მკაცრია — დაბუსტეთ აღჭურვილობის (ოპტიკა, ჩანთები, სმენის დაცვა) პოსტები და არა ცეცხლსასროლი იარაღის.'}
+];
+var KEY='gtm-launch-done';
+function done(){ try{return JSON.parse(localStorage.getItem(KEY)||'{}');}catch(e){return {};} }
+function setDone(id,v){ var d=done(); d[id]=v; try{localStorage.setItem(KEY,JSON.stringify(d));}catch(e){}
+  // sync admin playbook where ids match
+  try{ var pc=JSON.parse(localStorage.getItem('gtm-admin-pr-checks')||'{}'); if(['mail','fb','ig','meta','boost'].indexOf(id)>-1){ pc[id]=v; if(id==='post')pc.lnch=v; localStorage.setItem('gtm-admin-pr-checks',JSON.stringify(pc)); } if(id==='post'){pc.lnch=v;localStorage.setItem('gtm-admin-pr-checks',JSON.stringify(pc));} }catch(e){}
+}
+function esc(s){return s.replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function render(){
+  var d=done(), host=document.getElementById('steps'), n=STEPS.filter(function(s){return d[s.id];}).length;
+  var active = STEPS.find(function(s){return !d[s.id];});
+  document.getElementById('bar').style.width=Math.round(n/STEPS.length*100)+'%';
+  document.getElementById('bartext').textContent='შესრულებულია '+n+' / '+STEPS.length;
+  host.innerHTML = STEPS.map(function(s,i){
+    var isDone=!!d[s.id], isActive=active&&active.id===s.id;
+    return '<div class="step '+(isDone?'done':isActive?'active':'')+'" data-id="'+s.id+'">'+
+    '<div class="sh"><div class="snum">'+(isDone?'✓':(i+1))+'</div><h2>'+esc(s.t)+'</h2><span class="st">'+(isDone?'შესრულებულია':isActive?'მიმდინარე':'ელოდება')+'</span></div>'+
+    '<div class="sb"><p>'+esc(s.d)+'</p>'+
+    s.fields.map(function(f,fi){ return '<div class="kvrow"><label>'+esc(f[0])+'</label><input readonly data-copy-src="'+s.id+'-'+fi+'" value="'+esc(f[1]).replace(/\n/g,'&#10;')+'"><button class="copy" data-copy="'+s.id+'-'+fi+'">კოპირება</button></div>'; }).join('')+
+    '<div class="actions">'+
+      (s.url?'<a class="btn red" target="_blank" rel="noopener" href="'+s.url+'">↗ '+esc(s.urlLabel)+'</a>':'')+
+      '<button class="btn green" data-confirm="'+s.id+'">✓ შესრულებულია — შემდეგი</button>'+
+      (isDone?'':'')+
+    '</div>'+(s.note?'<div class="note">'+esc(s.note)+'</div>':'')+'</div></div>';
+  }).join('');
+  if(!active){ host.innerHTML+='<div class="donebox"><h2>🎉 გაშვება დასრულებულია!</h2><p>ყველა არხი მუშაობს. ახლა მართეთ ყველაფერი <a href="/admin/">ადმინ-კონსოლიდან</a> — მონიშნეთ პროგრესი, დაგეგმეთ პოსტები და უპასუხეთ კომენტარებს.</p></div>'; }
+  bind();
+}
+function bind(){
+  document.querySelectorAll('.sh').forEach(function(h){ h.addEventListener('click',function(){
+    var st=h.parentElement; if(st.classList.contains('active')){return;}
+    document.querySelectorAll('.step').forEach(function(x){x.classList.remove('active');});
+    st.classList.add('active');
+  }); });
+  document.querySelectorAll('[data-copy]').forEach(function(b){ b.addEventListener('click',function(){
+    var inp=document.querySelector('[data-copy-src="'+b.dataset.copy+'"]');
+    inp.select();
+    var v=inp.value;
+    (navigator.clipboard?navigator.clipboard.writeText(v):Promise.reject()).catch(function(){ document.execCommand('copy'); });
+    b.classList.add('ok'); b.textContent='დაკოპირდა ✓';
+    setTimeout(function(){ b.classList.remove('ok'); b.textContent='კოპირება'; },1600);
+  }); });
+  document.querySelectorAll('[data-confirm]').forEach(function(b){ b.addEventListener('click',function(){
+    setDone(b.dataset.confirm,true); render(); window.scrollTo({top:0,behavior:'smooth'});
+  }); });
+  document.getElementById('reset').onclick=function(){ localStorage.removeItem(KEY); render(); };
+}
+render();
+})();
+</script>
+</body>
+</html>

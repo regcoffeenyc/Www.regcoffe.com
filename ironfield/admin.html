@@ -253,7 +253,7 @@ function shopListings(){
   });
 }
 function allListings(){
-  var lv = live.listings.map(function(l){ return {id:l.id,name:l.name,seller:l.seller,price:l.price,cat:l.cat,cond:l.cond,regulated:l.regulated,created:l.created,live:true,status:l.status}; });
+  var lv = live.listings.map(function(l){ return {id:l.id,name:l.name,seller:l.seller,price:l.price,cat:l.cat,cond:l.cond,regulated:l.regulated,created:l.created,live:true,status:l.status,curr:l.cur||'GEL'}; });
   var liveNames = {}; lv.forEach(function(l){ liveNames[l.name]=1; });
   return lv.concat(shopListings().filter(function(s){ return !liveNames[s.name]; })).concat(db.listings);
 }
@@ -443,7 +443,7 @@ function vListings(){
   return '<div class="tools"><input placeholder="ძიება..." data-tool="q" value="'+esc(S.q)+'"></div>'+
   '<div class="panel"><div class="pb" style="overflow-x:auto"><table><tr><th>განცხადება</th><th>გამყიდველი</th><th>ფასი</th><th>კატეგორია</th><th>რეგულირებადი</th><th>სტატუსი</th><th></th></tr>'+
   (rows.length? rows.map(function(l){ var st=lStatus(l);
-    return '<tr><td><strong>'+esc(l.name)+'</strong><br><span class="tag dim">'+ago(l.created)+'</span></td><td>'+esc(l.seller)+'</td><td>$'+l.price+'</td><td>'+esc(l.cat)+'</td>'+
+    return '<tr><td><strong>'+esc(l.name)+'</strong><br><span class="tag dim">'+ago(l.created)+'</span></td><td>'+esc(l.seller)+'</td><td>'+(l.live&&l.curr!=='USD'?'₾':'$')+l.price+'</td><td>'+esc(l.cat)+'</td>'+
     '<td>'+(l.regulated?'<span class="tag red">დიახ</span>':'<span class="tag dim">არა</span>')+'</td>'+
     '<td>'+(st==='approved'?'<span class="tag green">დამტკიცებული</span>':st==='rejected'?'<span class="tag red">უარყოფილი</span>':'<span class="tag gold">მოდერაციაზე</span>')+'</td>'+
     '<td><div class="rowact">'+(st!=='approved'?'<button class="btn sm red" data-lst="approve" data-id="'+l.id+'">დამტკიცება</button>':'')+(st!=='rejected'?'<button class="btn sm" data-lst="reject" data-id="'+l.id+'">უარყოფა</button>':'')+'</div></td></tr>';
@@ -483,7 +483,7 @@ function vCatalog(){
     '<td>'+(p.active?'<span class="tag green">აქტიური</span>':'<span class="tag dim">გამორთული</span>')+'</td>'+
     '<td><div class="rowact"><button class="btn sm red" data-cat="save" data-id="'+p.id+'">შენახვა</button><button class="btn sm" data-cat="toggle" data-id="'+p.id+'">'+(p.active?'გამორთვა':'ჩართვა')+'</button></div></td></tr>';
   }).join('')+'</table></div></div>'+
-  '<div class="panel" style="margin-top:14px"><div class="ph"><h3>პროდუქტების იმპორტი — Claude-ისგან</h3></div><div class="pb">'+
+  '<div class="panel" style="margin-top:14px"><div class="ph"><h3>პროდუქტების იმპორტი — Claude-ისგან (ფასები ₾)</h3></div><div class="pb">'+
   '<p style="color:var(--muted);font-size:.86rem;margin-bottom:10px">მიაწოდეთ Claude-ს PDF ფასებით (Google Drive-ით) — ის მოამზადებს იმპორტ-კოდს მოკლე აღწერებით. ჩასვით აქ და ერთი ღილაკით გამოქვეყნდება.</p>'+
   '<textarea id="imp-json" rows="5" placeholder=\'[{"name":"...", "price":100, "cat":"ოპტიკა", "cond":"ახალი", "desc":"..."}]\'></textarea>'+
   '<div class="rowact" style="margin-top:10px"><button class="btn red" id="imp-go">იმპორტი და გამოქვეყნება</button></div>'+
@@ -777,7 +777,7 @@ function bind(){
       note.textContent='იტვირთება...';
       var done=0, fail=0;
       var run=items.reduce(function(pr,x){ return pr.then(function(){
-        return api('listings',{method:'POST',body:JSON.stringify({name:x.name,price:+x.price,cat:x.cat||'—',cond:x.cond||'ახალი',desc:x.desc||'',regulated:!!x.regulated})})
+        return api('listings',{method:'POST',body:JSON.stringify({name:x.name,price:+x.price,cat:x.cat||'—',cond:x.cond||'ახალი',desc:x.desc||'',regulated:!!x.regulated,cur:'GEL'})})
           .then(function(r){ if(r&&r.id)done++; else fail++; }).catch(function(){ fail++; });
       });}, Promise.resolve());
       run.then(function(){ log('კატალოგის იმპორტი: '+done+' ნივთი გამოქვეყნდა'+(fail?(', '+fail+' შეცდომა'):'')); toast(done+' ნივთი გამოქვეყნდა'); return refreshLive(); }).then(render);

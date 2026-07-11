@@ -154,6 +154,7 @@ module.exports = async function handler(req, res) {
         cat: String(b.cat || '—').slice(0, 60),
         cond: String(b.cond || '—').slice(0, 40),
         desc: String(b.desc || '').trim().slice(0, 500),
+        cur: b.cur === 'USD' ? 'USD' : 'GEL',
         regulated: !!b.regulated,
         seller: s ? s.name : 'GeoTactical Market-ის მაღაზია',
         sellerEmail: s ? s.email : 'store@geotacticalmarket.com',

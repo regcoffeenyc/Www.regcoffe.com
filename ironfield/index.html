@@ -123,6 +123,12 @@ h1,h2,h3{line-height:1.14!important}
 .gtm-gate-box p{color:#a9ae9d;font-size:.92rem;margin:0 0 16px}
 .gtm-gate-box .gtm-auth-submit{width:auto;padding:12px 34px}
 
+/* ---- currency toggle (GEL/USD) ---- */
+.gtm-cur-toggle{display:inline-flex;border:1px solid #363c2e;background:#1e2318;margin-right:10px;vertical-align:middle}
+.gtm-cur-toggle button{width:36px;height:34px;border:0;background:transparent;color:#a9ae9d;font-weight:800;font-size:.95rem;cursor:pointer;font-family:inherit}
+.gtm-cur-toggle button.active{background:#c8102e;color:#fff}
+.gtm-cur-toggle button:not(.active):hover{color:#e9e7dc}
+
     </style>
     <script id="if-enhance">
 /* GeoTactical Market enhancements
@@ -134,6 +140,91 @@ h1,h2,h3{line-height:1.14!important}
    Implemented as a progressive-enhancement layer over the compiled React app. */
 (function () {
   'use strict';
+
+  /* ---------- currency: GEL-first site with a ₾/$ toggle ---------- */
+  var USD_GEL = 2.68; // NBG-area market rate, update as needed
+  var cur = (function () { try { return localStorage.getItem('gtm-cur') || 'GEL'; } catch (e) { return 'GEL'; } })();
+  function fmtPrice(usd) {
+    if (cur === 'GEL') return '₾' + Math.round(usd * USD_GEL).toLocaleString('en-US');
+    var v = Math.round(usd * 100) / 100;
+    return '$' + (v % 1 === 0 ? v.toLocaleString('en-US') : v.toLocaleString('en-US', { minimumFractionDigits: 2 }));
+  }
+  function repaintPrices() {
+    var els = document.querySelectorAll('#root *');
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      if (el.childElementCount !== 0) continue;
+      var t = (el.textContent || '').trim();
+      if (!el.dataset.gtmUsd) {
+        var m = /^\$\s?([\d,]+(?:\.\d{1,2})?)$/.exec(t);
+        if (!m) continue;
+        el.dataset.gtmUsd = m[1].replace(/,/g, '');
+      }
+      var out = fmtPrice(parseFloat(el.dataset.gtmUsd));
+      if (el.textContent !== out) el.textContent = out;
+    }
+    var lg = document.querySelector('.if-price legend');
+    if (lg) {
+      var want = 'ფასი (' + (cur === 'GEL' ? '₾' : '$') + ')';
+      if (lg.textContent !== want) lg.textContent = want;
+    }
+  }
+  function attachCurToggle() {
+    if (document.querySelector('.gtm-cur-toggle')) return;
+    var btn = [...document.querySelectorAll('header button, header a')].find(function (e) {
+      return /პროფილი/.test(e.textContent) || /პროფილი/.test(e.getAttribute('aria-label') || '');
+    });
+    if (!btn || !btn.parentElement) return;
+    var wrap = document.createElement('div');
+    wrap.className = 'gtm-cur-toggle';
+    wrap.setAttribute('role', 'group');
+    wrap.setAttribute('aria-label', 'ვალუტის შეცვლა');
+    wrap.innerHTML = '<button type="button" data-c="GEL">₾</button><button type="button" data-c="USD">$</button>';
+    wrap.addEventListener('click', function (e) {
+      var b = e.target.closest('button'); if (!b) return;
+      cur = b.dataset.c;
+      try { localStorage.setItem('gtm-cur', cur); } catch (err) {}
+      syncCurButtons(); repaintPrices();
+    });
+    btn.parentElement.insertBefore(wrap, btn);
+    syncCurButtons();
+  }
+  function syncCurButtons() {
+    document.querySelectorAll('.gtm-cur-toggle button').forEach(function (b) {
+      b.classList.toggle('active', b.dataset.c === cur);
+    });
+  }
+
+  /* ---------- store listings: merge API catalog into the storefront ---------- */
+  var STORE_IMG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">' +
+    '<rect width="512" height="512" fill="#1e2318"/>' +
+    '<circle cx="256" cy="236" r="86" fill="none" stroke="#c8102e" stroke-width="14"/>' +
+    '<line x1="256" y1="118" x2="256" y2="354" stroke="#c8102e" stroke-width="12"/>' +
+    '<line x1="138" y1="236" x2="374" y2="236" stroke="#c8102e" stroke-width="12"/>' +
+    '<text x="256" y="430" font-family="Arial, sans-serif" font-size="38" font-weight="bold" fill="#e9e7dc" text-anchor="middle" letter-spacing="6">GEOTACTICAL</text></svg>');
+  function mergeStoreCache() {
+    var cache; try { cache = JSON.parse(localStorage.getItem('gtm-store-cache') || '[]'); } catch (e) { cache = []; }
+    if (!Array.isArray(cache) || !cache.length) return 0;
+    var local; try { local = JSON.parse(localStorage.getItem('ironfield-listings') || '[]'); } catch (e) { local = []; }
+    var have = {}; local.forEach(function (l) { have[String(l.id)] = 1; });
+    var added = 0;
+    cache.forEach(function (l) {
+      var id = 'api-' + l.id;
+      if (have[id]) return;
+      var usd = (l.cur === 'USD') ? +l.price : (+l.price / USD_GEL);
+      local.push({
+        id: id, name: l.name, category: l.cat || 'სასროლეთის აღჭურვილობა', condition: l.cond || 'ახალი',
+        price: Math.round(usd * 100) / 100, image: STORE_IMG, badge: 'მაღაზიის პროდუქტი',
+        rating: 0, reviews: 0, location: 'თბილისი', seller: l.seller || 'GeoTactical Market-ის მაღაზია',
+        verified: true, regulated: !!l.regulated, description: l.desc || ''
+      });
+      added++;
+    });
+    if (added) { try { window._gtmOrigSetItem ? window._gtmOrigSetItem('ironfield-listings', JSON.stringify(local)) : localStorage.setItem('ironfield-listings', JSON.stringify(local)); } catch (e) {} }
+    return added;
+  }
+  mergeStoreCache(); // synchronous, before the app mounts
 
   var CATEGORIES = [
     'ოპტიკა', 'ჩანთები და შენახვა', 'სასროლეთის აღჭურვილობა',
@@ -188,13 +279,19 @@ h1,h2,h3{line-height:1.14!important}
   function harvestCards() {
     document.querySelectorAll('.product-card').forEach(function (card) {
       var name = card.querySelector('h3') && card.querySelector('h3').textContent.trim();
-      if (!name || harvest[name]) return;
+      if (!name) return;
       var img = card.querySelector('.product-image img');
-      var price = card.querySelector('.product-bottom strong');
-      harvest[name] = {
-        img: img ? img.getAttribute('src') : null,
-        price: price ? price.textContent.trim() : null
-      };
+      var priceEl = card.querySelector('.product-bottom strong');
+      var usd = null;
+      if (priceEl) {
+        if (priceEl.dataset.gtmUsd) usd = parseFloat(priceEl.dataset.gtmUsd);
+        else {
+          var n = parseFloat((priceEl.textContent || '').replace(/[^0-9.]/g, ''));
+          if (!isNaN(n)) usd = (priceEl.textContent || '').indexOf('₾') > -1 ? n / USD_GEL : n;
+        }
+      }
+      if (!harvest[name]) harvest[name] = { img: img ? img.getAttribute('src') : null, usd: usd };
+      else { if (usd != null) harvest[name].usd = usd; if (!harvest[name].img && img) harvest[name].img = img.getAttribute('src'); }
     });
   }
 
@@ -251,7 +348,7 @@ h1,h2,h3{line-height:1.14!important}
         html += prods.map(function (p) {
           var h = harvest[p] || {};
           var thumb = h.img ? '<img class="if-ac-thumb" alt="" src="' + h.img + '">' : null;
-          var price = h.price ? '<span class="if-ac-price">' + esc(h.price) + '</span>' : '';
+          var price = (h.usd != null) ? '<span class="if-ac-price">' + esc(fmtPrice(h.usd)) + '</span>' : '';
           return itemHtml(p, q, price, thumb);
         }).join('');
       }
@@ -452,10 +549,22 @@ h1,h2,h3{line-height:1.14!important}
     });
   }
   fetch('/api/gtm?a=health').then(function (r) { return r.json(); }).then(function (h) {
-    if (h && h.connected) { apiMode = true; applyAll(); }
+    if (h && h.connected) {
+      apiMode = true; applyAll();
+      fetch('/api/gtm?a=listings').then(function (r2) { return r2.json(); }).then(function (list) {
+        if (!Array.isArray(list)) return;
+        try { localStorage.setItem('gtm-store-cache', JSON.stringify(list)); } catch (e) {}
+        var added = mergeStoreCache();
+        if (added > 0 && !sessionStorage.getItem('gtm-store-synced')) {
+          sessionStorage.setItem('gtm-store-synced', '1');
+          location.reload();
+        }
+      }).catch(function (e) {});
+    }
   }).catch(function (e) {});
 
   var _origSetItem = localStorage.setItem.bind(localStorage);
+  window._gtmOrigSetItem = _origSetItem;
   try {
     localStorage.setItem = function (k, v) {
       _origSetItem(k, v);
@@ -469,10 +578,10 @@ h1,h2,h3{line-height:1.14!important}
     var synced; try { synced = JSON.parse(localStorage.getItem('gtm-synced') || '[]'); } catch (e) { synced = []; }
     arr.forEach(function (l) {
       var key = String(l.id || l.name || '');
-      if (!key || synced.indexOf(key) > -1) return;
+      if (!key || key.indexOf('api-') === 0 || synced.indexOf(key) > -1) return;
       synced.push(key);
       apiCall('listings', { method: 'POST', body: JSON.stringify({
-        name: l.name || l.title, price: l.price, cat: l.category, cond: l.condition, regulated: !!l.regulated
+        name: l.name || l.title, price: l.price, cat: l.category, cond: l.condition, regulated: !!l.regulated, cur: 'USD'
       }) }).catch(function (e) {});
     });
     _origSetItem('gtm-synced', JSON.stringify(synced.slice(-100)));
@@ -683,6 +792,8 @@ h1,h2,h3{line-height:1.14!important}
       syncView();
       syncPrice();
       syncAuth();
+      attachCurToggle();
+      repaintPrices();
     } finally {
       applying = false;
     }
@@ -704,7 +815,7 @@ h1,h2,h3{line-height:1.14!important}
     new MutationObserver(function (muts) {
       for (var i = 0; i < muts.length; i++) {
         var t = muts[i].target;
-        if (t.closest && (t.closest('.if-ac') || t.closest('.if-view-toggle') || t.closest('.if-price') || t.closest('.gtm-auth-backdrop') || t.closest('.gtm-menu') || t.closest('.gtm-gate'))) continue;
+        if (t.closest && (t.closest('.if-ac') || t.closest('.if-view-toggle') || t.closest('.if-price') || t.closest('.gtm-auth-backdrop') || t.closest('.gtm-menu') || t.closest('.gtm-gate') || t.closest('.gtm-cur-toggle'))) continue;
         schedule();
         return;
       }

@@ -257,7 +257,7 @@ function allListings(){
   var liveNames = {}; lv.forEach(function(l){ liveNames[l.name]=1; });
   return lv.concat(shopListings().filter(function(s){ return !liveNames[s.name]; })).concat(db.listings);
 }
-function lStatus(l){ if(l.live) return l.status; return db.listingStatus[l.id] || 'pending'; }
+function lStatus(l){ if(l.live) return l.status; return db.listingStatus[l.id] || 'approved'; }
 function allUsers(){
   var lv = live.users.map(function(u){ return {email:u.email,name:u.name,phone:u.phone,source:'LIVE',created:u.created,live:true,verified:u.verified,blocked:u.blocked}; });
   var liveEmails = {}; lv.forEach(function(u){ liveEmails[u.email]=1; });
@@ -291,11 +291,11 @@ function hashtags(cat){
 /* ---------- app state / router ---------- */
 var S = { view:'ceo', msgId:null, q:'', authed: sessionStorage.getItem('gtm-admin-session')==='1' };
 var AGENTS = [
-  {k:'listings',  n:'განცხადებების აგენტი', d:'მოდერაცია და დამტკიცება', m:function(){var c=allListings().filter(function(l){return lStatus(l)==='pending';}).length; return c?c+' მოლოდინში':'';}},
+  {k:'listings',  n:'განცხადებების აგენტი', d:'ავტო-გამოქვეყნება; დარღვევების მოხსნა', m:function(){return '';}},
   {k:'orders',    n:'შეკვეთების აგენტი', d:'შეკვეთების ნაკადი და სტატუსები', m:function(){var c=ordersAll().filter(function(o){return o.status==='new';}).length; return c?c+' ახალი':'';}},
-  {k:'users',     n:'მომხმარებლების აგენტი', d:'ანგარიშები, ვერიფიკაცია, ბლოკირება', m:function(){var c=allUsers().filter(function(u){return !(db.userFlags[u.email]||{}).verified;}).length; return c?c+' არავერიფიცირებული':'';}},
+  {k:'users',     n:'მომხმარებლების აგენტი', d:'ავტო-რეგისტრაცია და ვერიფიკაცია; ბლოკი საჭიროებისას', m:function(){return '';}},
   {k:'catalog',   n:'კატალოგის აგენტი', d:'ფასები, მარაგი, ხილვადობა', m:function(){var c=db.catalog.filter(function(p){return p.stock<=2;}).length; return c?c+' მცირე მარაგი':'';}},
-  {k:'compliance',n:'კანონიერების აგენტი', d:'რეგულირებადი გადაცემების კონტროლი', m:function(){var c=db.compliance.filter(function(x){return x.status==='pending';}).length; return c?c+' შესამოწმებელი':'';}},
+  {k:'compliance',n:'კანონიერების აგენტი', d:'გადაცემების ჟურნალი (არასავალდებულო)', m:function(){return '';}},
   {k:'inbox',     n:'კომუნიკაციების აგენტი', d:'შეტყობინებები და პასუხის შაბლონები', m:function(){var c=msgsAll().filter(function(m){return m.status==='new';}).length; return c?c+' წაუკითხავი':'';}},
   {k:'marketing', n:'მარკეტინგის აგენტი', d:'სოციალური პოსტები და კამპანიები', m:function(){var c=db.drafts.filter(function(d){return d.status==='draft';}).length; return c?c+' დრაფტი':'';}},
   {k:'pr',        n:'პრ და გავრცელების აგენტი', d:'საიტის ბუსტი სოც. ქსელებში, UTM ბმულები, გაშვების გეგმა', m:function(){var t=PLAYBOOK.length, d=PLAYBOOK.filter(function(x){return db.prChecks[x.id];}).length; return d<t?(t-d)+' დავალება გეგმაში':'';}},
@@ -356,11 +356,11 @@ function render(){
 
 /* ---------- views ---------- */
 var SOP = {
-  listings:  {m:'არც ერთი განცხადება არ გამოქვეყნდეს შემოწმების გარეშე.', a:'აგროვებს ახალ განცხადებებს რიგში, აჩვენებს რეგულირებულობის დროშას.', u:'დაამტკიცე/უარყავი — თითოზე ~20 წამი.', f:'დღეში 1-ჯერ'},
+  listings:  {m:'ყველა განცხადება ქვეყნდება ავტომატურად, დაუყოვნებლივ.', a:'აქვეყნებს ყველა ახალ განცხადებას თქვენი ჩარევის გარეშე.', u:'პერიოდული თვალიერება; აშკარა დარღვევის მოხსნა უარყოფით.', f:'კვირაში 1-ჯერ'},
   orders:    {m:'არც ერთი შეკვეთა არ დარჩეს უპასუხოდ 24 საათზე მეტხანს.', a:'იჭერს ახალ შეკვეთებს, აწყობს სტატუსების მილსადენს.', u:'დაადასტურე ახალი → მონიშნე გზაშია/დასრულებული.', f:'დღეში 1–2-ჯერ'},
-  users:     {m:'სანდო გამყიდველები ვერიფიცირებულები არიან, პრობლემურები — დაბლოკილები.', a:'აგროვებს რეგისტრაციებს ბაზიდან, ითვლის არავერიფიცირებულებს.', u:'ვერიფიკაცია მოთხოვნისას; ბლოკი დარღვევისას.', f:'კვირაში 2-ჯერ'},
+  users:     {m:'რეგისტრაცია და ვერიფიკაცია სრულად ავტომატურია.', a:'არეგისტრირებს და ავტომატურად ვერიფიცირებს ყველა ახალ მომხმარებელს.', u:'მხოლოდ ბლოკირება დარღვევისას.', f:'საჭიროებისას'},
   catalog:   {m:'ფასები აქტუალურია, მარაგი არასდროს არის 0-ზე შეუმჩნევლად.', a:'აფრთხილებს მცირე მარაგზე (≤2 ცალი).', u:'განაახლე ფასი/მარაგი, გამორთე ამოწურული.', f:'კვირაში 1-ჯერ'},
-  compliance:{m:'რეგულირებადი ნივთი მხოლოდ სამივე შემოწმების შემდეგ გადაეცემა — გამონაკლისის გარეშე.', a:'კეტავს დამტკიცებას სამივე პუნქტის მონიშვნამდე.', u:'გადაამოწმე დოკუმენტები და მონიშნე — ეს ერთადერთია, რასაც ავტომატიზაცია ვერ ჩაანაცვლებს.', f:'მოთხოვნისთანავე (პრიორიტეტი #1)'},
+  compliance:{m:'გადაცემების ჟურნალი — არასავალდებულო ჩანაწერები საკუთარი სიმშვიდისთვის.', a:'ინახავს გადაცემის ჩანაწერებს, თუ გადაწყვეტთ წარმოებას.', u:'არაფერი სავალდებულო — იარაღი საქართველოში ისედაც რეგისტრირებულია.', f:'სურვილისამებრ'},
   inbox:     {m:'ყველა შეტყობინებას პასუხი აქვს 24 საათში.', a:'ახარისხებს თემით, ითვლის სისწრაფის ქულას, გთავაზობს მზა პასუხს.', u:'დააჭირე „პასუხს" — შაბლონი უკვე ჩასმულია, საჭიროებისას შეასწორე.', f:'დღეში 1-ჯერ'},
   marketing: {m:'კვირაში მინიმუმ 3 პოსტი ორივე არხზე.', a:'ჰეშთეგები, ორენოვანი დრაფტები, კონტენტ-კალენდარი.', u:'დაწერე იდეა → დაამტკიცე → გამოაქვეყნე Meta Business-იდან.', f:'კვირაში 1 სესია (30 წთ)'},
   pr:        {m:'საიტი ჩანს ყველგან, ყველა ბმულს UTM აქვს.', a:'გაზიარების ბმულები, UTM გენერატორი, გაშვების გეგმის ტრეკინგი.', u:'გაუზიარე ახალი აქციები არხებში; შეასრულე გეგმის შემდეგი პუნქტი.', f:'კვირაში 1-ჯერ'},
@@ -368,12 +368,8 @@ var SOP = {
 };
 function ceoTasks(){
   var t=[];
-  var comp=db.compliance.filter(function(x){return x.status==='pending';}).length;
-  if(comp) t.push({p:10,v:'compliance',x:comp+' რეგულირებადი გადაცემა ელოდება შემოწმებას',w:'კრიტიკული'});
   var newO=ordersAll().filter(function(o){return o.status==='new';}).length;
   if(newO) t.push({p:9,v:'orders',x:newO+' ახალი შეკვეთა დასადასტურებელია',w:'დღეს'});
-  var pend=allListings().filter(function(l){return lStatus(l)==='pending';}).length;
-  if(pend) t.push({p:8,v:'listings',x:pend+' განცხადება მოდერაციაზეა',w:'დღეს'});
   var fu=msgsAll().filter(followUp).length;
   if(fu) t.push({p:8,v:'inbox',x:fu+' შეტყობინება 2+ დღეა უპასუხოა',w:'დღეს'});
   var unread=msgsAll().filter(function(m){return m.status==='new';}).length;
@@ -382,8 +378,6 @@ function ceoTasks(){
   if(ment) t.push({p:5,v:'social',x:ment+' ახალი კომენტარი სოც. ქსელებში',w:'დღეს'});
   var low=db.catalog.filter(function(x){return x.active&&x.stock<=2;}).length;
   if(low) t.push({p:5,v:'catalog',x:low+' პროდუქტს მარაგი ელევა',w:'ამ კვირაში'});
-  var unver=allUsers().filter(function(u){var f=u.live?u:{verified:(db.userFlags[u.email]||{}).verified}; return !f.verified&&!f.blocked;}).length;
-  if(unver) t.push({p:3,v:'users',x:unver+' მომხმარებელი ვერიფიკაციის გარეშეა',w:'ამ კვირაში'});
   var nextPr=PLAYBOOK.find(function(x){return !db.prChecks[x.id];});
   if(nextPr) t.push({p:4,v:'pr',x:'გაშვების გეგმის შემდეგი ნაბიჯი: '+nextPr.t,w:'ამ კვირაში'});
   var drafts=db.drafts.filter(function(d){return d.status==='draft';}).length;
@@ -414,22 +408,20 @@ function vCEO(){
   '<dt>თვეში 1-ჯერ (20 წთ)</dt><dd>შედეგების გადახედვა (Meta Business სტატისტიკა) · ADMIN_KEY-ის შეცვლა · კამპანიის ბიუჯეტის კორექცია</dd></dl>'+
   '<p class="empty">ოქროს წესი: თუ ბრიფინგი ცარიელია — დღეს ადმინში საქმე არ გაქვთ.</p></div></div>'+
   '<div class="panel"><div class="ph"><h3>რა კეთდება თქვენს გარეშე</h3></div><div class="pb">'+
-  '<dl class="kv"><dt>სრულად ავტომატური</dt><dd>რეგისტრაციები · სესიები · განცხადებების მიღება რიგში · შეტყობინებების დახარისხება და პასუხის შაბლონები · მარაგის გაფრთხილებები · ჰეშთეგები · UTM ბმულები</dd>'+
-  '<dt>ერთი დაჭერა თქვენგან</dt><dd>დამტკიცება/უარყოფა · სტატუსის წინსვლა · პასუხის გაგზავნა · ვერიფიკაცია</dd>'+
-  '<dt>მხოლოდ თქვენ</dt><dd>კანონიერი გადაცემის სამი შემოწმება · ფასების პოლიტიკა · პოსტების საბოლოო ტექსტი</dd></dl>'+
+  '<dl class="kv"><dt>სრულად ავტომატური</dt><dd>რეგისტრაცია და ვერიფიკაცია · სესიები · განცხადებების გამოქვეყნება · შეტყობინებების დახარისხება და პასუხის შაბლონები · მარაგის გაფრთხილებები · ჰეშთეგები · UTM ბმულები</dd>'+
+  '<dt>ერთი დაჭერა თქვენგან</dt><dd>დარღვევის მოხსნა/ბლოკი · შეკვეთის სტატუსის წინსვლა · პასუხის გაგზავნა</dd>'+
+  '<dt>მხოლოდ თქვენ</dt><dd>ფასების პოლიტიკა · პოსტების საბოლოო ტექსტი · თაღლითობის შემთხვევაში გადაწყვეტილება</dd></dl>'+
   '</div></div></div>';
 }
 function vDashboard(){
-  var pend=allListings().filter(function(l){return lStatus(l)==='pending';}).length;
   var newO=ordersAll().filter(function(o){return o.status==='new';}).length;
   var unread=msgsAll().filter(function(m){return m.status==='new';}).length;
-  var comp=db.compliance.filter(function(c){return c.status==='pending';}).length;
   var rev=ordersAll().filter(function(o){return o.status!=='cancelled';}).reduce(function(s,o){return s+o.total;},0);
   var fu=msgsAll().filter(followUp).length;
   return '<div class="cards">'+
-    '<div class="card"><div class="k'+(pend?' warn':'')+'">'+pend+'</div><div class="t">განცხადება მოდერაციაზე</div></div>'+
+    '<div class="card"><div class="k">'+allListings().filter(function(l){return lStatus(l)==='approved';}).length+'</div><div class="t">გამოქვეყნებული განცხადება</div></div>'+
     '<div class="card"><div class="k">'+newO+'</div><div class="t">ახალი შეკვეთა</div></div>'+
-    '<div class="card"><div class="k'+(comp?' bad':'')+'">'+comp+'</div><div class="t">კანონიერი გადაცემა შესამოწმებელი</div></div>'+
+    
     '<div class="card"><div class="k">'+allUsers().length+'</div><div class="t">რეგისტრირებული მომხმარებელი</div></div>'+
     '<div class="card"><div class="k'+(unread?' warn':'')+'">'+unread+'</div><div class="t">წაუკითხავი შეტყობინება</div></div>'+
     '<div class="card"><div class="k">$'+rev.toLocaleString()+'</div><div class="t">შეკვეთების ჯამი</div></div>'+
@@ -457,7 +449,7 @@ function vListings(){
     '<td><div class="rowact">'+(st!=='approved'?'<button class="btn sm red" data-lst="approve" data-id="'+l.id+'">დამტკიცება</button>':'')+(st!=='rejected'?'<button class="btn sm" data-lst="reject" data-id="'+l.id+'">უარყოფა</button>':'')+'</div></td></tr>';
   }).join(''):'<tr><td colspan="7" class="empty">განცხადებები ვერ მოიძებნა.</td></tr>')+
   '</table></div></div>'+
-  '<p class="empty">საიტზე მომხმარებლების მიერ დამატებული განცხადებები ავტომატურად ჩნდება აქ (ამავე ბრაუზერში).</p>';
+  '<p class="empty">ყველა განცხადება ქვეყნდება ავტომატურად — აქ მხოლოდ თვალს ადევნებთ და დარღვევას ხსნით უარყოფით.</p>';
 }
 
 function vOrders(){

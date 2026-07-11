@@ -108,7 +108,7 @@ module.exports = async function handler(req, res) {
       const users = await getJSON('gtm:users', {});
       if (users[email]) return json(res, 409, { error: 'exists' });
       const salt = token();
-      users[email] = { name: name, phone: String(b.phone || '').trim(), salt: salt, hash: hashPass(pass, salt), created: new Date().toISOString(), verified: false, blocked: false };
+      users[email] = { name: name, phone: String(b.phone || '').trim(), salt: salt, hash: hashPass(pass, salt), created: new Date().toISOString(), verified: true, blocked: false };
       await setJSON('gtm:users', users);
       const t = token();
       await redis(['SETEX', 'gtm:sess:' + t, 60 * 60 * 24 * 30, email]);
@@ -154,7 +154,7 @@ module.exports = async function handler(req, res) {
         cond: String(b.cond || '—').slice(0, 40),
         regulated: !!b.regulated,
         seller: s.name, sellerEmail: s.email,
-        status: 'pending', created: new Date().toISOString()
+        status: 'approved', created: new Date().toISOString()
       };
       if (item.name.length < 3) return json(res, 400, { error: 'bad-name' });
       all.unshift(item);

@@ -21,7 +21,7 @@ Error generating stack: `+e.message+`
   <body>
     <div id="root"></div>
   
-    <style id="if-enhance-css">
+<style>
 /* GeoTactical Market enhancements: OpticsPlanet-style product list & search, view toggle, price filter */
 
 /* ---- product tiles, styled after leading US tactical retailers (OpticsPlanet) ---- */
@@ -129,8 +129,16 @@ h1,h2,h3{line-height:1.14!important}
 .gtm-cur-toggle button.active{background:#c8102e;color:#fff}
 .gtm-cur-toggle button:not(.active):hover{color:#e9e7dc}
 
-    </style>
-    <script id="if-enhance">
+.if-ship-none{color:#c9a25a}
+.if-ship-seller{color:#8d927f}
+.radio-row .if-count{margin-left:auto;font-size:.68rem;font-weight:700;color:#a9ae9d;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.09);padding:1px 8px;border-radius:11px;line-height:1.5}
+.gtm-policy ul{list-style:none;margin:14px 0 4px;padding:0}
+.gtm-policy li{font-size:.84rem;line-height:1.55;color:#a9ae9d;padding:10px 0;border-top:1px solid rgba(255,255,255,.08)}
+.gtm-policy li:first-child{border-top:0}
+.gtm-policy li strong{color:#e8eadf;display:block;margin-bottom:2px}
+
+</style>
+<script>
 /* GeoTactical Market enhancements
    Search & product list UX modeled on leading US tactical retailers (OpticsPlanet):
    1. Search autocomplete with product thumbnails and prices
@@ -515,8 +523,24 @@ h1,h2,h3{line-height:1.14!important}
         stock.className = 'if-stock';
         stock.innerHTML = CHECK_SVG + ' მარაგშია';
         var ship = document.createElement('div');
-        ship.className = 'if-ship';
-        ship.textContent = 'უფასო მიწოდება საქართველოში';
+        var kick = (card.querySelector('.product-kicker') || { textContent: '' }).textContent;
+        var cCat = (kick.split('·')[0] || '').trim();
+        var cCond = (kick.split('·')[1] || '').trim();
+        var cName = (card.querySelector('h3') || { textContent: '' }).textContent.trim();
+        var cSeller = SELLERS[cName];
+        if (card.querySelector('.product-image.regulated') || /იარაღ|საბრძოლო/.test(cCat)) {
+          ship.className = 'if-ship if-ship-none';
+          ship.textContent = 'მიწოდება არ ხდება — ადგილზე გადაცემა';
+        } else if (cSeller && cSeller.indexOf('GeoTactical Market') !== 0) {
+          ship.className = 'if-ship if-ship-seller';
+          ship.textContent = 'მიწოდება — გამყიდველის პასუხისმგებლობით';
+        } else if (cCond && cCond !== 'ახალი') {
+          ship.className = 'if-ship if-ship-seller';
+          ship.textContent = 'მიწოდება — შეთანხმებით';
+        } else {
+          ship.className = 'if-ship';
+          ship.textContent = 'უფასო მიწოდება თბილისში';
+        }
         var priceEl = bottom.querySelector('strong');
         if (priceEl && priceEl.nextSibling) {
           bottom.insertBefore(stock, priceEl.nextSibling);
@@ -535,6 +559,117 @@ h1,h2,h3{line-height:1.14!important}
     });
   }
 
+
+  var SELLERS = {};
+  function refreshSellers() {
+    SELLERS = {};
+    try {
+      (JSON.parse(localStorage.getItem('ironfield-listings') || '[]') || []).forEach(function (l) {
+        if (l && l.name) SELLERS[l.name] = l.seller || '';
+      });
+    } catch (e) {}
+  }
+
+  /* delivery policy: no shipping for firearms/ammo; seller-arranged for user
+     listings and used items; free shipping only in Tbilisi for new store stock */
+  function fixModalDelivery() {
+    var modal = document.querySelector('.product-modal');
+    if (!modal) return;
+    var span = modal.querySelector('.delivery-row span');
+    if (!span || span.getAttribute('data-gtm-ship')) return;
+    span.setAttribute('data-gtm-ship', '1');
+    var kick = (modal.querySelector('.product-kicker') || { textContent: '' }).textContent;
+    var cond = (kick.split('·')[1] || '').trim();
+    var sellerEl = modal.querySelector('.seller-box strong');
+    var seller = sellerEl ? sellerEl.textContent.trim() : '';
+    if (seller && seller.indexOf('GeoTactical Market') !== 0) {
+      span.innerHTML = '<strong>მიწოდებას უზრუნველყოფს გამყიდველი</strong> · პლატფორმა მომხმარებელთა შორის მიწოდებაზე პასუხისმგებელი არ არის';
+    } else if (cond && cond !== 'ახალი') {
+      span.innerHTML = '<strong>მიწოდება შეთანხმებით</strong> · დაუკავშირდით გამყიდველს';
+    } else {
+      span.innerHTML = '<strong>უფასო მიწოდება თბილისში</strong> · რეგიონებში ტარიფი შეკვეთისას';
+    }
+  }
+
+  function annotateCatCounts() {
+    var groups = document.querySelectorAll('aside.filters .filter-group');
+    if (!groups.length) return;
+    var catGroup = null, condGroup = null;
+    groups.forEach(function (g) {
+      var t = g.querySelector('.filter-title');
+      if (!t) return;
+      var txt = t.textContent.trim();
+      if (txt === 'კატეგორია') catGroup = g;
+      if (txt === 'მდგომარეობა') condGroup = g;
+    });
+    if (!catGroup) return;
+    var mode = document.querySelector('.marketplace-hero') ? 'mk' : 'shop';
+    var key = 'gtm-cat-counts-' + mode;
+    var rows = [...catGroup.querySelectorAll('.radio-row')];
+    if (!rows.length) return;
+    function rowName(row) {
+      var c = row.cloneNode(true);
+      var b = c.querySelector('.if-count');
+      if (b) b.remove();
+      return c.textContent.trim();
+    }
+    // counts are trustworthy only when nothing filters the grid
+    var allSel = (rows[0].querySelector('input') || {}).checked;
+    var condAll = !condGroup || ((condGroup.querySelector('.radio-row input') || {}).checked);
+    var tb = document.querySelector('.catalog-toolbar > div');
+    var searching = tb && tb.querySelector('span');
+    if (allSel && condAll && !searching) {
+      var counts = {}, total = 0;
+      document.querySelectorAll('.product-card .product-kicker').forEach(function (k) {
+        var cat = k.textContent.split('·')[0].trim();
+        if (!cat) return;
+        counts[cat] = (counts[cat] || 0) + 1;
+        total++;
+      });
+      if (total) {
+        counts[rowName(rows[0])] = total;
+        try { localStorage.setItem(key, JSON.stringify(counts)); } catch (e) {}
+      }
+    }
+    var saved;
+    try { saved = JSON.parse(localStorage.getItem(key) || '{}'); } catch (e) { saved = {}; }
+    rows.forEach(function (row) {
+      var n = saved[rowName(row)];
+      var chip = row.querySelector('.if-count');
+      if (n == null) { if (chip) chip.remove(); return; }
+      if (!chip) {
+        chip = document.createElement('span');
+        chip.className = 'if-count';
+        row.appendChild(chip);
+      }
+      if (chip.textContent !== String(n)) chip.textContent = n;
+    });
+  }
+
+  function attachShippingPolicy() {
+    [...document.querySelectorAll('footer button')].forEach(function (b) {
+      if (b.textContent.trim() !== 'მიწოდება და დაბრუნება' || b.getAttribute('data-gtm-pol')) return;
+      b.setAttribute('data-gtm-pol', '1');
+      b.addEventListener('click', function () {
+        if (document.querySelector('.gtm-policy-backdrop')) return;
+        var w = document.createElement('div');
+        w.className = 'gtm-auth-backdrop gtm-policy-backdrop';
+        w.innerHTML =
+          '<div class="gtm-auth gtm-policy" role="dialog" aria-modal="true">' +
+          '<button type="button" class="gtm-auth-close" aria-label="დახურვა">✕</button>' +
+          '<h3>მიწოდება და დაბრუნება</h3>' +
+          '<ul>' +
+          '<li><strong>ცეცხლსასროლი იარაღი და საბრძოლო მასალა</strong> — მიწოდება არ ხდება. გადაცემა მხოლოდ ადგილზე, კანონით დადგენილი წესით.</li>' +
+          '<li><strong>მაღაზიის ახალი პროდუქცია</strong> (აღჭურვილობა, ოპტიკა, ტანსაცმელი და სხვ.) — უფასო მიწოდება თბილისში; რეგიონებში ტარიფი გამოითვლება შეკვეთისას.</li>' +
+          '<li><strong>მომხმარებლების განცხადებები</strong> — მიწოდებას აწყობს გამყიდველი. პლატფორმა მომხმარებელთა შორის გარიგების მიწოდებაზე პასუხისმგებელი არ არის.</li>' +
+          '<li><strong>დაბრუნება</strong> — მაღაზიის ახალ პროდუქციაზე 14 დღეში, დაუზიანებელი შეფუთვით.</li>' +
+          '</ul></div>';
+        w.querySelector('.gtm-auth-close').addEventListener('click', function () { w.remove(); });
+        w.addEventListener('click', function (e) { if (e.target === w) w.remove(); });
+        document.body.appendChild(w);
+      });
+    });
+  }
 
   /* ---------- backend bridge: uses /api/gtm when a database is attached ---------- */
   var apiMode = false;
@@ -788,7 +923,11 @@ h1,h2,h3{line-height:1.14!important}
       var aside = document.querySelector('aside.filters');
       if (aside) attachPriceFilter(aside);
       harvestCards();
+      refreshSellers();
       decorateCards();
+      fixModalDelivery();
+      annotateCatCounts();
+      attachShippingPolicy();
       syncView();
       syncPrice();
       syncAuth();
@@ -815,7 +954,7 @@ h1,h2,h3{line-height:1.14!important}
     new MutationObserver(function (muts) {
       for (var i = 0; i < muts.length; i++) {
         var t = muts[i].target;
-        if (t.closest && (t.closest('.if-ac') || t.closest('.if-view-toggle') || t.closest('.if-price') || t.closest('.gtm-auth-backdrop') || t.closest('.gtm-menu') || t.closest('.gtm-gate') || t.closest('.gtm-cur-toggle'))) continue;
+        if (t.closest && (t.closest('.if-ac') || t.closest('.if-view-toggle') || t.closest('.if-price') || t.closest('.gtm-auth-backdrop') || t.closest('.gtm-menu') || t.closest('.gtm-gate') || t.closest('.gtm-cur-toggle') || t.closest('.if-count') || t.closest('.gtm-policy-backdrop'))) continue;
         schedule();
         return;
       }
@@ -827,6 +966,6 @@ h1,h2,h3{line-height:1.14!important}
   else start();
 })();
 
-    </script>
-  </body>
+</script>
+</body>
 </html>

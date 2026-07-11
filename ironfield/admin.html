@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="ka">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>GeoTactical Market — ადმინისტრირება</title>
+<style>
+:root{--bg:#14170f;--panel:#1e2318;--panel2:#232a1c;--line:#2c3126;--line2:#363c2e;--ink:#e9e7dc;--ink2:#f2f0e6;--muted:#a9ae9d;--dim:#8d947f;--red:#c8102e;--red2:#a30d25;--green:#5ecb7d;--gold:#f4a83d;--blue:#6db3ea;
+--body:"Noto Sans Georgian","DejaVu Sans",system-ui,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:14.5px;line-height:1.5}
+button{font-family:var(--body);cursor:pointer}
+input,select,textarea{font-family:var(--body);background:var(--bg);border:1px solid var(--line2);color:var(--ink);padding:8px 10px;font-size:.9rem;width:100%}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--red);outline-offset:-1px}
+a{color:var(--blue)}
+.btn{border:1px solid var(--line2);background:var(--panel2);color:var(--ink);padding:7px 14px;font-size:.84rem;font-weight:600}
+.btn:hover{border-color:var(--dim)}
+.btn.red{background:var(--red);border-color:var(--red);color:#fff;font-weight:700}
+.btn.red:hover{background:var(--red2)}
+.btn.ghost{background:transparent}
+.btn.sm{padding:4px 10px;font-size:.78rem}
+.tag{display:inline-block;padding:2px 8px;font-size:.72rem;font-weight:700;letter-spacing:.03em;border:1px solid var(--line2);color:var(--muted)}
+.tag.green{color:#0d1108;background:var(--green);border-color:var(--green)}
+.tag.red{color:#fff;background:var(--red);border-color:var(--red)}
+.tag.gold{color:#1a1405;background:var(--gold);border-color:var(--gold)}
+.tag.blue{color:#0a1520;background:var(--blue);border-color:var(--blue)}
+.tag.dim{color:var(--dim)}
+/* login */
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.login-card{width:min(400px,100%);background:var(--panel);border:1px solid var(--line2);padding:30px}
+.login-card h1{font-size:1.35rem;color:var(--ink2);line-height:1.25;margin-bottom:4px}
+.login-card .sub{color:var(--muted);font-size:.86rem;margin-bottom:18px}
+.login-card label{display:block;font-size:.74rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:12px 0 4px}
+.login-card .err{color:#f06a7c;font-size:.82rem;min-height:1.2em;margin-top:8px}
+.login-card .note{margin-top:14px;font-size:.72rem;color:var(--dim)}
+.brandline{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.brandline .dot{width:12px;height:12px;background:var(--red)}
+.brandline span{font-weight:800;letter-spacing:.14em;font-size:.8rem;color:var(--ink2)}
+/* layout */
+.shell{display:grid;grid-template-columns:236px 1fr;min-height:100vh}
+.side{background:#11140c;border-right:1px solid var(--line);padding:18px 0;position:sticky;top:0;height:100vh;overflow-y:auto}
+.side .brandline{padding:0 18px}
+.side nav{margin-top:12px}
+.side nav button{display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;background:transparent;border:0;color:var(--muted);padding:10px 18px;font-size:.9rem;font-weight:600;border-left:3px solid transparent}
+.side nav button:hover{color:var(--ink)}
+.side nav button.on{color:var(--ink2);background:var(--panel);border-left-color:var(--red)}
+.side nav .cnt{font-size:.7rem;background:var(--red);color:#fff;padding:1px 7px;font-weight:800}
+.side .foot{padding:16px 18px;color:var(--dim);font-size:.72rem}
+.main{padding:22px 26px;min-width:0}
+.tophead{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap}
+.tophead h2{font-size:1.35rem;color:var(--ink2)}
+.tophead .who{color:var(--muted);font-size:.84rem;display:flex;gap:10px;align-items:center}
+/* cards */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:20px}
+.card{background:var(--panel);border:1px solid var(--line);padding:16px}
+.card .k{font-size:1.7rem;font-weight:800;color:var(--ink2)}
+.card .k.warn{color:var(--gold)}
+.card .k.bad{color:#f06a7c}
+.card .t{color:var(--muted);font-size:.8rem;margin-top:2px}
+.grid2{display:grid;grid-template-columns:1.4fr 1fr;gap:14px;align-items:start}
+@media(max-width:980px){.shell{grid-template-columns:1fr}.side{position:static;height:auto}.grid2{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line)}
+.panel .ph{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--line)}
+.panel .ph h3{font-size:.95rem;color:var(--ink2)}
+.panel .pb{padding:14px 16px}
+/* agents grid */
+.agents{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:12px}
+.agent{background:var(--panel);border:1px solid var(--line);padding:14px;cursor:pointer}
+.agent:hover{border-color:var(--dim)}
+.agent .an{display:flex;align-items:center;gap:8px;font-weight:700;color:var(--ink2);font-size:.92rem}
+.agent .pulse{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pu 2s infinite}
+@keyframes pu{50%{opacity:.35}}
+.agent .ad{color:var(--muted);font-size:.78rem;margin-top:6px}
+.agent .am{margin-top:8px;font-size:.78rem;color:var(--gold);font-weight:700}
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+th{color:var(--dim);text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;padding:9px 10px;border-bottom:1px solid var(--line2)}
+td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:hover td{background:#20261a}
+.tools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.tools input,.tools select{width:auto;min-width:150px}
+.rowact{display:flex;gap:6px;flex-wrap:wrap}
+.feed{list-style:none}
+.feed li{padding:9px 0;border-bottom:1px solid var(--line);font-size:.84rem}
+.feed li:last-child{border:0}
+.feed time{color:var(--dim);font-size:.72rem;display:block}
+.empty{color:var(--dim);padding:18px 6px;font-size:.88rem}
+/* detail split */
+.split{display:grid;grid-template-columns:1fr 1.2fr;gap:14px;align-items:start}
+@media(max-width:900px){.split{grid-template-columns:1fr}}
+.msg-list{max-height:540px;overflow-y:auto}
+.msg{padding:11px 14px;border-bottom:1px solid var(--line);cursor:pointer}
+.msg:hover,.msg.on{background:var(--panel2)}
+.msg .s{display:flex;justify-content:space-between;gap:8px;font-weight:700;color:var(--ink2);font-size:.86rem}
+.msg .p{color:var(--muted);font-size:.78rem;margin-top:2px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:.84rem;margin-bottom:10px}
+.kv dt{color:var(--dim)}
+.chk{display:flex;gap:8px;align-items:flex-start;margin:7px 0;font-size:.86rem}
+.chk input{width:auto;margin-top:3px}
+form .fl{display:block;font-size:.74rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:12px 0 4px}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:700px){.frow{grid-template-columns:1fr}}
+.toast{position:fixed;bottom:18px;right:18px;z-index:400;background:var(--panel2);border:1px solid var(--green);color:var(--ink2);padding:12px 18px;font-size:.88rem;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.hashrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.hashrow span{font-size:.76rem;color:var(--blue)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+(function(){
+'use strict';
+/* ============ GeoTactical Market Admin — multi-agent operations console ============
+   Adapted from the GDSFF Media & Communications Bot admin project:
+   same login-gated layout, dashboard cards, inbox automation (classification,
+   urgency, follow-ups), reply templates, social composer and settings —
+   re-targeted to full administration of geotacticalmarket.com. Demo build:
+   all data persists in this browser (localStorage), no backend. */
+
+var LS = {
+  get: function(k,d){ try{ var v=localStorage.getItem(k); return v?JSON.parse(v):d; }catch(e){ return d; } },
+  set: function(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+function ago(iso){ var d=Math.floor((Date.now()-new Date(iso).getTime())/864e5); return d<=0?'დღეს':d+' დღის წინ'; }
+function id(){ return 'x'+Math.random().toString(36).slice(2,9); }
+
+/* ---------- seed data ---------- */
+var SEED = {
+  listings: [
+    {id:'l1', name:'Vortex ოპტიკური სამიზნე 4–16×44', seller:'დავით კაპანაძე', price:640, cat:'ოპტიკა', cond:'კარგი', regulated:false, created:'2026-07-09T10:00:00Z'},
+    {id:'l2', name:'ნახევრად ავტომატური საბრძოლო კარაბინი', seller:'გია წიკლაური', price:2100, cat:'ცეცხლსასროლი იარაღი', cond:'თითქმის ახალი', regulated:true, created:'2026-07-10T08:30:00Z'},
+    {id:'l3', name:'ტაქტიკური ჟილეტი MOLLE სისტემით', seller:'ნინო ბერიძე', price:180, cat:'ტანსაცმელი', cond:'ახალი', regulated:false, created:'2026-07-11T06:20:00Z'}
+  ],
+  orders: [
+    {id:'o-1042', buyer:'ლევან მაისურაძე', items:'Defender Pro სმენის დამცავი', total:159, status:'new', created:'2026-07-11T07:10:00Z'},
+    {id:'o-1041', buyer:'თამარ ჯაფარიძე', items:'Ridge 32ლ ზურგჩანთა + სმენის დაცვა', total:348, status:'confirmed', created:'2026-07-10T15:40:00Z'},
+    {id:'o-1040', buyer:'ირაკლი ჩხეიძე', items:'Scout 10×42 ბინოკლი', total:329, status:'shipped', created:'2026-07-09T11:05:00Z'},
+    {id:'o-1039', buyer:'გიორგი ლომიძე', items:'ყველა ამინდის ქურთუკი', total:219, status:'completed', created:'2026-07-07T09:00:00Z'}
+  ],
+  catalog: [
+    {id:'p1', name:'Apex 5–25×56 ზუსტი ოპტიკური სამიზნე', price:1249, stock:6, active:true},
+    {id:'p2', name:'Ridge 32-ლიტრიანი საველე ზურგჩანთა', price:189, stock:14, active:true},
+    {id:'p3', name:'Defender Pro ელექტრონული სმენის დამცავი', price:159, stock:22, active:true},
+    {id:'p4', name:'Scout 10×42 საველე ბინოკლი', price:329, stock:9, active:true},
+    {id:'p5', name:'ყველა ამინდის საველე ქურთუკი', price:219, stock:11, active:true},
+    {id:'p6', name:'კომპაქტური ტრავმის ნაკრები — საველე', price:89, stock:30, active:true},
+    {id:'p7', name:'Apex ზუსტი ოპტიკა — მეორადი', price:875, stock:1, active:true},
+    {id:'p8', name:'Ridge საველე ზურგჩანთა — ზეთისხილისფერი', price:95, stock:3, active:true},
+    {id:'p9', name:'Bolt-Action სპორტული შაშხანა — .308', price:1380, stock:2, active:true}
+  ],
+  users: [
+    {email:'demo.buyer@example.com', name:'ლევან მაისურაძე', phone:'+995 555 11 22 33', source:'seed', created:'2026-07-05T10:00:00Z'},
+    {email:'demo.seller@example.com', name:'დავით კაპანაძე', phone:'+995 599 44 55 66', source:'seed', created:'2026-07-06T12:00:00Z'}
+  ],
+  messages: [
+    {id:'m1', from:'თამარ ჯაფარიძე', email:'tamar@example.com', subject:'შეკვეთის მიწოდების ვადა', body:'გამარჯობა, როდის ჩამოვა ჩემი შეკვეთა o-1041? მადლობა.', prio:'normal', status:'new', received:'2026-07-10T16:00:00Z'},
+    {id:'m2', from:'გია წიკლაური', email:'gia@example.com', subject:'რეგულირებადი ნივთის განცხადება', body:'მინდა კარაბინის გაყიდვა — რა დოკუმენტები მჭირდება კანონიერი გადაცემისთვის?', prio:'high', status:'new', received:'2026-07-10T09:00:00Z'},
+    {id:'m3', from:'Salome Media', email:'press@example.com', subject:'ინტერვიუ მარკეტპლეისზე', body:'გვინდა სტატია თქვენს პლატფორმაზე — შესაძლებელია ინტერვიუ?', prio:'low', status:'replied', received:'2026-07-08T11:00:00Z'},
+    {id:'m4', from:'ნიკა გელაშვილი', email:'nika@example.com', subject:'ანგარიშის ვერიფიკაცია', body:'როგორ გავხდე ვერიფიცირებული გამყიდველი?', prio:'normal', status:'in progress', received:'2026-07-09T13:30:00Z'}
+  ],
+  compliance: [
+    {id:'c1', item:'Bolt-Action სპორტული შაშხანა — .308', buyer:'ირაკლი ჩხეიძე', seller:'GeoTactical Market-ის მაღაზია', status:'pending', created:'2026-07-10T14:00:00Z', checks:{id:false,permit:false,site:false}},
+    {id:'c2', item:'ნახევრად ავტომატური საბრძოლო კარაბინი', buyer:'—', seller:'გია წიკლაური', status:'pending', created:'2026-07-11T05:00:00Z', checks:{id:false,permit:false,site:false}}
+  ],
+  drafts: [
+    {id:'d1', title:'ზაფხულის ფასდაკლება ოპტიკაზე', platforms:['facebook','instagram'], category:'promo', ge:'ზუსტი ოპტიკა −15% მთელი კვირა. მხოლოდ geotacticalmarket.com-ზე.', en:'Precision optics −15% all week. Only at geotacticalmarket.com.', status:'scheduled', scheduled:'2026-07-14T09:00:00Z'},
+    {id:'d2', title:'როგორ მუშაობს კანონიერი გადაცემა', platforms:['facebook'], category:'safety', ge:'რეგულირებადი ნივთები მხოლოდ კანონით დადგენილი წესით გადაეცემა — გაეცანით პროცესს.', en:'', status:'draft', scheduled:''}
+  ],
+  activity: [
+    {t:'2026-07-11T07:12:00Z', x:'ახალი შეკვეთა o-1042 — ლევან მაისურაძე ($159)'},
+    {t:'2026-07-11T06:22:00Z', x:'ახალი განცხადება მოდერაციაზე: ტაქტიკური ჟილეტი MOLLE'},
+    {t:'2026-07-10T14:03:00Z', x:'კანონიერი გადაცემის მოთხოვნა c1 შექმნილია'},
+    {t:'2026-07-10T09:01:00Z', x:'ახალი შეტყობინება: რეგულირებადი ნივთის განცხადება'}
+  ]
+};
+
+/* ---------- persistent stores (seed on first run) ---------- */
+function store(key, seed){
+  var v = LS.get('gtm-admin-'+key, null);
+  if (v === null) { v = seed; LS.set('gtm-admin-'+key, v); }
+  return v;
+}
+var db = {
+  listings: store('listings', SEED.listings),
+  listingStatus: store('listing-status', {}),      // id -> pending|approved|rejected
+  orders: store('orders', SEED.orders),
+  catalog: store('catalog', SEED.catalog),
+  userFlags: store('user-flags', {}),              // email -> {verified,blocked}
+  seedUsers: store('seed-users', SEED.users),
+  messages: store('messages', SEED.messages),
+  compliance: store('compliance', SEED.compliance),
+  drafts: store('drafts', SEED.drafts),
+  activity: store('activity', SEED.activity),
+  auth: store('auth', {user:'admin', p: btoa('tactical2026')})
+};
+function save(k){ LS.set('gtm-admin-'+({listingStatus:'listing-status',userFlags:'user-flags',seedUsers:'seed-users'}[k]||k), db[k]); }
+function log(x){ db.activity.unshift({t:new Date().toISOString(), x:x}); db.activity=db.activity.slice(0,40); save('activity'); }
+
+/* shop integration: users registered on the storefront + listings posted there */
+function shopUsers(){
+  var u = LS.get('gtm-users', {});
+  return Object.keys(u).map(function(em){ return {email:em, name:u[em].name, phone:u[em].phone||'—', source:'საიტიდან', created:''}; });
+}
+function shopListings(){
+  var arr = LS.get('ironfield-listings', []);
+  return (Array.isArray(arr)?arr:[]).map(function(l){
+    return {id:'shop-'+(l.id||id()), name:l.name||l.title||'უსახელო განცხადება', seller:l.seller||l.contactName||'საიტის მომხმარებელი',
+            price:+l.price||0, cat:l.category||'—', cond:l.condition||'—', regulated:!!l.regulated, created:l.createdAt||new Date().toISOString()};
+  });
+}
+function allListings(){ return shopListings().concat(db.listings); }
+function lStatus(l){ return db.listingStatus[l.id] || 'pending'; }
+function allUsers(){ return shopUsers().concat(db.seedUsers); }
+
+/* inbox automation — adapted keyword rules */
+var RULES = [
+  {words:['ვერიფიკაცია','ანგარიშ','რეგისტრაცია'], cls:'ანგარიშები', tpl:'გამარჯობა! ვერიფიკაციისთვის ატვირთეთ პირადობის დამადასტურებელი დოკუმენტი პროფილიდან — განხილვას 1 სამუშაო დღე სჭირდება.'},
+  {words:['შეკვეთ','მიწოდებ','ჩამოვა'], cls:'შეკვეთები', tpl:'გამარჯობა! თქვენი შეკვეთის სტატუსი შეგიძლიათ იხილოთ პროფილში; მიწოდება ჩვეულებრივ 2–3 სამუშაო დღეა.'},
+  {words:['რეგულირებ','იარაღ','ნებართვ','კანონ'], cls:'კანონიერება', tpl:'გამარჯობა! რეგულირებადი ნივთების გადაცემა ხდება მხოლოდ კანონით დადგენილი წესით: საჭიროა პირადობა და შესაბამისი ნებართვა; გადაცემა ლიცენზირებულ ადგილზე.'},
+  {words:['ინტერვიუ','მედია','პრეს','სტატია'], cls:'მედია', tpl:'გამარჯობა! მედია-მოთხოვნებზე გიპასუხებთ 24 საათში; მოგვწერეთ სასურველი თემები და ვადები.'}
+];
+function classify(m){
+  var t=(m.subject+' '+m.body).toLowerCase();
+  var r=RULES.find(function(r){ return r.words.some(function(w){ return t.indexOf(w)!==-1; }); });
+  return r || {cls:'ზოგადი', tpl:'გამარჯობა! მადლობა შეტყობინებისთვის — გუნდი მალე დაგიკავშირდებათ.'};
+}
+function urgency(m){
+  var w={low:1,normal:2,high:3,urgent:4}[m.prio]||2;
+  var age=Math.floor((Date.now()-new Date(m.received).getTime())/864e5);
+  return w + (age>=2?2:0);
+}
+function followUp(m){ var age=Math.floor((Date.now()-new Date(m.received).getTime())/864e5); return ['replied','closed'].indexOf(m.status)===-1 && age>=2; }
+function hashtags(cat){
+  var base=['#GeoTacticalMarket','#TacticalGeorgia'];
+  var map={promo:['#Sale','#TacticalGear'],safety:['#Safety','#LegalTransfer'],product:['#NewArrival'],community:['#Community','#Shooting']};
+  return base.concat(map[cat]||[]);
+}
+
+/* ---------- app state / router ---------- */
+var S = { view:'dashboard', msgId:null, q:'', authed: sessionStorage.getItem('gtm-admin-session')==='1' };
+var AGENTS = [
+  {k:'listings',  n:'განცხადებების აგენტი', d:'მოდერაცია და დამტკიცება', m:function(){var c=allListings().filter(function(l){return lStatus(l)==='pending';}).length; return c?c+' მოლოდინში':'';}},
+  {k:'orders',    n:'შეკვეთების აგენტი', d:'შეკვეთების ნაკადი და სტატუსები', m:function(){var c=db.orders.filter(function(o){return o.status==='new';}).length; return c?c+' ახალი':'';}},
+  {k:'users',     n:'მომხმარებლების აგენტი', d:'ანგარიშები, ვერიფიკაცია, ბლოკირება', m:function(){var c=allUsers().filter(function(u){return !(db.userFlags[u.email]||{}).verified;}).length; return c?c+' არავერიფიცირებული':'';}},
+  {k:'catalog',   n:'კატალოგის აგენტი', d:'ფასები, მარაგი, ხილვადობა', m:function(){var c=db.catalog.filter(function(p){return p.stock<=2;}).length; return c?c+' მცირე მარაგი':'';}},
+  {k:'compliance',n:'კანონიერების აგენტი', d:'რეგულირებადი გადაცემების კონტროლი', m:function(){var c=db.compliance.filter(function(x){return x.status==='pending';}).length; return c?c+' შესამოწმებელი':'';}},
+  {k:'inbox',     n:'კომუნიკაციების აგენტი', d:'შეტყობინებები და პასუხის შაბლონები', m:function(){var c=db.messages.filter(function(m){return m.status==='new';}).length; return c?c+' წაუკითხავი':'';}},
+  {k:'marketing', n:'მარკეტინგის აგენტი', d:'სოციალური პოსტები და კამპანიები', m:function(){var c=db.drafts.filter(function(d){return d.status==='draft';}).length; return c?c+' დრაფტი':'';}}
+];
+var NAV = [{k:'dashboard',n:'სამეთაურო პანელი'}].concat(AGENTS.map(function(a){return {k:a.k,n:a.n.replace(' აგენტი','ები').replace('კომუნიკაციებიები','შეტყობინებები')};})).concat([{k:'settings',n:'პარამეტრები'}]);
+NAV[1].n='განცხადებები'; NAV[2].n='შეკვეთები'; NAV[3].n='მომხმარებლები'; NAV[4].n='კატალოგი'; NAV[5].n='კანონიერება'; NAV[6].n='შეტყობინებები'; NAV[7].n='მარკეტინგი';
+
+var app=document.getElementById('app');
+function toast(x){ var t=document.createElement('div'); t.className='toast'; t.textContent=x; document.body.appendChild(t); setTimeout(function(){t.remove();},2400); }
+function navCount(k){ var a=AGENTS.find(function(a){return a.k===k;}); if(!a)return ''; var m=a.m(); var n=parseInt(m)||0; return n?'<span class="cnt">'+n+'</span>':''; }
+
+function render(){
+  if(!S.authed) return renderLogin();
+  var body =
+    S.view==='dashboard'? vDashboard() :
+    S.view==='listings' ? vListings() :
+    S.view==='orders'   ? vOrders() :
+    S.view==='users'    ? vUsers() :
+    S.view==='catalog'  ? vCatalog() :
+    S.view==='compliance'?vCompliance() :
+    S.view==='inbox'    ? vInbox() :
+    S.view==='marketing'? vMarketing() : vSettings();
+  app.innerHTML =
+  '<div class="shell"><aside class="side">'+
+    '<div class="brandline"><span class="dot"></span><span>GEOTACTICAL ADMIN</span></div>'+
+    '<nav>'+NAV.map(function(i){return '<button data-v="'+i.k+'" class="'+(S.view===i.k?'on':'')+'">'+i.n+navCount(i.k)+'</button>';}).join('')+'</nav>'+
+    '<div class="foot">geotacticalmarket.com<br>მრავალაგენტიანი მართვის კონსოლი — დემო</div>'+
+  '</aside><main class="main">'+
+    '<div class="tophead"><h2>'+esc(NAV.find(function(i){return i.k===S.view;}).n)+'</h2>'+
+    '<div class="who"><a href="/" target="_blank">→ მაღაზიის ნახვა</a><span>ადმინი</span><button class="btn sm" data-act="logout">გასვლა</button></div></div>'+
+    body+
+  '</main></div>';
+  bind();
+}
+
+/* ---------- views ---------- */
+function vDashboard(){
+  var pend=allListings().filter(function(l){return lStatus(l)==='pending';}).length;
+  var newO=db.orders.filter(function(o){return o.status==='new';}).length;
+  var unread=db.messages.filter(function(m){return m.status==='new';}).length;
+  var comp=db.compliance.filter(function(c){return c.status==='pending';}).length;
+  var rev=db.orders.filter(function(o){return o.status!=='cancelled';}).reduce(function(s,o){return s+o.total;},0);
+  var fu=db.messages.filter(followUp).length;
+  return '<div class="cards">'+
+    '<div class="card"><div class="k'+(pend?' warn':'')+'">'+pend+'</div><div class="t">განცხადება მოდერაციაზე</div></div>'+
+    '<div class="card"><div class="k">'+newO+'</div><div class="t">ახალი შეკვეთა</div></div>'+
+    '<div class="card"><div class="k'+(comp?' bad':'')+'">'+comp+'</div><div class="t">კანონიერი გადაცემა შესამოწმებელი</div></div>'+
+    '<div class="card"><div class="k">'+allUsers().length+'</div><div class="t">რეგისტრირებული მომხმარებელი</div></div>'+
+    '<div class="card"><div class="k'+(unread?' warn':'')+'">'+unread+'</div><div class="t">წაუკითხავი შეტყობინება</div></div>'+
+    '<div class="card"><div class="k">$'+rev.toLocaleString()+'</div><div class="t">შეკვეთების ჯამი</div></div>'+
+  '</div>'+
+  '<div class="grid2"><div>'+
+    '<div class="panel"><div class="ph"><h3>ტაქტიკური აგენტები</h3><span class="tag green">ყველა აქტიურია</span></div><div class="pb agents">'+
+      AGENTS.map(function(a){ var m=a.m(); return '<div class="agent" data-v="'+a.k+'"><div class="an"><span class="pulse"></span>'+a.n+'</div><div class="ad">'+a.d+'</div>'+(m?'<div class="am">⚠ '+m+'</div>':'<div class="am" style="color:var(--green)">✓ ყველაფერი რიგზეა</div>')+'</div>'; }).join('')+
+    '</div></div>'+
+  '</div><div>'+
+    '<div class="panel"><div class="ph"><h3>ბოლო აქტივობა</h3></div><div class="pb"><ul class="feed">'+
+      db.activity.slice(0,9).map(function(a){return '<li><time>'+ago(a.t)+'</time>'+esc(a.x)+'</li>';}).join('')+
+    '</ul></div></div>'+
+    (fu? '<div class="panel" style="margin-top:14px"><div class="ph"><h3>საჭიროა follow-up</h3></div><div class="pb">'+fu+' შეტყობინება 2+ დღეა პასუხს ელოდება — <a href="#" data-v="inbox">გახსენით შეტყობინებები</a></div></div>':'')+
+  '</div></div>';
+}
+
+function vListings(){
+  var rows=allListings().filter(function(l){ var q=S.q.toLowerCase(); return !q||(l.name+' '+l.seller+' '+l.cat).toLowerCase().indexOf(q)!==-1; });
+  return '<div class="tools"><input placeholder="ძიება..." data-tool="q" value="'+esc(S.q)+'"></div>'+
+  '<div class="panel"><div class="pb" style="overflow-x:auto"><table><tr><th>განცხადება</th><th>გამყიდველი</th><th>ფასი</th><th>კატეგორია</th><th>რეგულირებადი</th><th>სტატუსი</th><th></th></tr>'+
+  (rows.length? rows.map(function(l){ var st=lStatus(l);
+    return '<tr><td><strong>'+esc(l.name)+'</strong><br><span class="tag dim">'+ago(l.created)+'</span></td><td>'+esc(l.seller)+'</td><td>$'+l.price+'</td><td>'+esc(l.cat)+'</td>'+
+    '<td>'+(l.regulated?'<span class="tag red">დიახ</span>':'<span class="tag dim">არა</span>')+'</td>'+
+    '<td>'+(st==='approved'?'<span class="tag green">დამტკიცებული</span>':st==='rejected'?'<span class="tag red">უარყოფილი</span>':'<span class="tag gold">მოდერაციაზე</span>')+'</td>'+
+    '<td><div class="rowact">'+(st!=='approved'?'<button class="btn sm red" data-lst="approve" data-id="'+l.id+'">დამტკიცება</button>':'')+(st!=='rejected'?'<button class="btn sm" data-lst="reject" data-id="'+l.id+'">უარყოფა</button>':'')+'</div></td></tr>';
+  }).join(''):'<tr><td colspan="7" class="empty">განცხადებები ვერ მოიძებნა.</td></tr>')+
+  '</table></div></div>'+
+  '<p class="empty">საიტზე მომხმარებლების მიერ დამატებული განცხადებები ავტომატურად ჩნდება აქ (ამავე ბრაუზერში).</p>';
+}
+
+function vOrders(){
+  var FLOW={'new':'confirmed','confirmed':'shipped','shipped':'completed'};
+  var LBL={'new':['ახალი','gold'],'confirmed':['დადასტურებული','blue'],'shipped':['გზაშია','blue'],'completed':['დასრულებული','green'],'cancelled':['გაუქმებული','red']};
+  return '<div class="panel"><div class="pb" style="overflow-x:auto"><table><tr><th>ID</th><th>მყიდველი</th><th>ნივთები</th><th>ჯამი</th><th>სტატუსი</th><th></th></tr>'+
+  db.orders.map(function(o){ var l=LBL[o.status];
+    return '<tr><td>'+o.id+'</td><td>'+esc(o.buyer)+'</td><td>'+esc(o.items)+'</td><td>$'+o.total+'</td><td><span class="tag '+l[1]+'">'+l[0]+'</span></td>'+
+    '<td><div class="rowact">'+(FLOW[o.status]?'<button class="btn sm red" data-ord="adv" data-id="'+o.id+'">→ '+LBL[FLOW[o.status]][0]+'</button>':'')+
+    (o.status!=='completed'&&o.status!=='cancelled'?'<button class="btn sm" data-ord="cancel" data-id="'+o.id+'">გაუქმება</button>':'')+'</div></td></tr>';
+  }).join('')+'</table></div></div>';
+}
+
+function vUsers(){
+  return '<div class="panel"><div class="pb" style="overflow-x:auto"><table><tr><th>მომხმარებელი</th><th>ელფოსტა</th><th>ტელეფონი</th><th>წყარო</th><th>სტატუსი</th><th></th></tr>'+
+  allUsers().map(function(u){ var f=db.userFlags[u.email]||{};
+    return '<tr><td><strong>'+esc(u.name)+'</strong></td><td>'+esc(u.email)+'</td><td>'+esc(u.phone)+'</td><td><span class="tag dim">'+esc(u.source)+'</span></td>'+
+    '<td>'+(f.blocked?'<span class="tag red">დაბლოკილი</span>':f.verified?'<span class="tag green">ვერიფიცირებული</span>':'<span class="tag gold">არავერიფიცირებული</span>')+'</td>'+
+    '<td><div class="rowact"><button class="btn sm '+(f.verified?'':'red')+'" data-usr="verify" data-id="'+esc(u.email)+'">'+(f.verified?'ვერიფიკაციის მოხსნა':'ვერიფიკაცია')+'</button>'+
+    '<button class="btn sm" data-usr="block" data-id="'+esc(u.email)+'">'+(f.blocked?'განბლოკვა':'ბლოკირება')+'</button></div></td></tr>';
+  }).join('')+'</table></div></div>'+
+  '<p class="empty">„საიტიდან" — geotacticalmarket.com-ზე რეგისტრირებული ანგარიშები (ამავე ბრაუზერიდან).</p>';
+}
+
+function vCatalog(){
+  return '<div class="panel"><div class="pb" style="overflow-x:auto"><table><tr><th>პროდუქტი</th><th style="width:110px">ფასი $</th><th style="width:90px">მარაგი</th><th>ხილვადობა</th><th></th></tr>'+
+  db.catalog.map(function(p){
+    return '<tr><td><strong>'+esc(p.name)+'</strong>'+(p.stock<=2?' <span class="tag gold">მცირე მარაგი</span>':'')+'</td>'+
+    '<td><input type="number" min="0" value="'+p.price+'" data-cat-price="'+p.id+'"></td>'+
+    '<td><input type="number" min="0" value="'+p.stock+'" data-cat-stock="'+p.id+'"></td>'+
+    '<td>'+(p.active?'<span class="tag green">აქტიური</span>':'<span class="tag dim">გამორთული</span>')+'</td>'+
+    '<td><div class="rowact"><button class="btn sm red" data-cat="save" data-id="'+p.id+'">შენახვა</button><button class="btn sm" data-cat="toggle" data-id="'+p.id+'">'+(p.active?'გამორთვა':'ჩართვა')+'</button></div></td></tr>';
+  }).join('')+'</table></div></div>';
+}
+
+function vCompliance(){
+  return db.compliance.map(function(c){
+    var done=c.checks.id&&c.checks.permit&&c.checks.site;
+    return '<div class="panel" style="margin-bottom:14px"><div class="ph"><h3>'+esc(c.item)+'</h3>'+
+    (c.status==='approved'?'<span class="tag green">დამტკიცებული</span>':c.status==='rejected'?'<span class="tag red">უარყოფილი</span>':'<span class="tag gold">მოლოდინში</span>')+'</div><div class="pb">'+
+    '<dl class="kv"><dt>გამყიდველი</dt><dd>'+esc(c.seller)+'</dd><dt>მყიდველი</dt><dd>'+esc(c.buyer)+'</dd><dt>შეიქმნა</dt><dd>'+ago(c.created)+'</dd></dl>'+
+    (c.status==='pending'?
+      '<label class="chk"><input type="checkbox" data-cmp-chk="id" data-id="'+c.id+'" '+(c.checks.id?'checked':'')+'> პირადობის დოკუმენტი გადამოწმებულია</label>'+
+      '<label class="chk"><input type="checkbox" data-cmp-chk="permit" data-id="'+c.id+'" '+(c.checks.permit?'checked':'')+'> შესაბამისი ნებართვა/ლიცენზია გადამოწმებულია</label>'+
+      '<label class="chk"><input type="checkbox" data-cmp-chk="site" data-id="'+c.id+'" '+(c.checks.site?'checked':'')+'> გადაცემა დანიშნულია ლიცენზირებულ ადგილზე</label>'+
+      '<div class="rowact" style="margin-top:10px"><button class="btn red" data-cmp="approve" data-id="'+c.id+'" '+(done?'':'disabled')+'>გადაცემის დამტკიცება</button>'+
+      '<button class="btn" data-cmp="reject" data-id="'+c.id+'">უარყოფა</button></div>'+
+      (done?'':'<p class="empty">დამტკიცება შესაძლებელია მხოლოდ სამივე პუნქტის მონიშვნის შემდეგ.</p>')
+    :'')+'</div></div>';
+  }).join('') || '<p class="empty">შესამოწმებელი გადაცემები არ არის.</p>';
+}
+
+function vInbox(){
+  var m=db.messages.find(function(x){return x.id===S.msgId;});
+  return '<div class="split"><div class="panel"><div class="ph"><h3>შეტყობინებები</h3></div><div class="msg-list">'+
+  db.messages.slice().sort(function(a,b){return urgency(b)-urgency(a);}).map(function(x){ var c=classify(x);
+    return '<div class="msg '+(S.msgId===x.id?'on':'')+'" data-msg="'+x.id+'"><div class="s"><span>'+esc(x.from)+'</span>'+
+    (x.status==='new'?'<span class="tag gold">ახალი</span>':x.status==='replied'?'<span class="tag green">ნაპასუხები</span>':'<span class="tag blue">მუშავდება</span>')+'</div>'+
+    '<div class="p">'+esc(x.subject)+' · <span class="tag dim">'+c.cls+'</span>'+(followUp(x)?' <span class="tag red">follow-up</span>':'')+'</div></div>';
+  }).join('')+'</div></div>'+
+  '<div class="panel">'+(m? (function(){ var c=classify(m);
+    return '<div class="ph"><h3>'+esc(m.subject)+'</h3><span class="tag dim">'+c.cls+'</span></div><div class="pb">'+
+    '<dl class="kv"><dt>ვისგან</dt><dd>'+esc(m.from)+' — '+esc(m.email)+'</dd><dt>მიღებულია</dt><dd>'+ago(m.received)+'</dd><dt>პრიორიტეტი</dt><dd>'+esc(m.prio)+' (ქულა: '+urgency(m)+')</dd></dl>'+
+    '<p style="margin:10px 0;border:1px solid var(--line);padding:12px;background:var(--bg)">'+esc(m.body)+'</p>'+
+    '<label class="fl">შემოთავაზებული პასუხი (შაბლონი)</label>'+
+    '<textarea rows="4" id="reply-box">'+esc(c.tpl)+'</textarea>'+
+    '<div class="rowact" style="margin-top:10px"><button class="btn red" data-msg-act="reply" data-id="'+m.id+'">პასუხის გაგზავნა</button>'+
+    '<button class="btn" data-msg-act="progress" data-id="'+m.id+'">მუშავდება</button>'+
+    '<button class="btn" data-msg-act="close" data-id="'+m.id+'">დახურვა</button></div></div>'; })()
+  :'<div class="pb empty">აირჩიეთ შეტყობინება სიიდან.</div>')+'</div></div>';
+}
+
+function vMarketing(){
+  return '<div class="split"><div class="panel"><div class="ph"><h3>ახალი პოსტი</h3></div><div class="pb"><form id="draft-form">'+
+    '<label class="fl">სათაური</label><input name="title" required>'+
+    '<div class="frow"><div><label class="fl">პლატფორმა</label><select name="platforms"><option value="facebook,instagram">Facebook + Instagram</option><option value="facebook">Facebook</option><option value="instagram">Instagram</option></select></div>'+
+    '<div><label class="fl">კატეგორია</label><select name="category"><option value="promo">აქცია</option><option value="product">პროდუქტი</option><option value="safety">უსაფრთხოება</option><option value="community">საზოგადოება</option></select></div></div>'+
+    '<label class="fl">ქართული ტექსტი</label><textarea name="ge" rows="3" required></textarea>'+
+    '<label class="fl">ინგლისური ტექსტი (არასავალდებულო)</label><textarea name="en" rows="2"></textarea>'+
+    '<label class="fl">დაგეგმვის დრო (არასავალდებულო)</label><input type="datetime-local" name="scheduled">'+
+    '<div class="hashrow" id="hash-preview">'+hashtags('promo').map(function(h){return '<span>'+h+'</span>';}).join('')+'</div>'+
+    '<div class="rowact" style="margin-top:12px"><button class="btn red" type="submit">დრაფტის შენახვა</button></div>'+
+  '</form></div></div>'+
+  '<div class="panel"><div class="ph"><h3>კონტენტ-კალენდარი</h3></div><div class="pb" style="overflow-x:auto"><table><tr><th>პოსტი</th><th>პლატფორმა</th><th>სტატუსი</th><th></th></tr>'+
+  db.drafts.map(function(d){
+    var st={draft:['დრაფტი','dim'],approved:['დამტკიცებული','blue'],scheduled:['დაგეგმილი','gold'],published:['გამოქვეყნებული','green']}[d.status];
+    return '<tr><td><strong>'+esc(d.title)+'</strong><br><span class="tag dim">'+esc(d.category)+'</span> <span style="color:var(--muted);font-size:.78rem">'+esc(d.ge).slice(0,60)+'…</span></td>'+
+    '<td>'+d.platforms.map(function(p){return '<span class="tag dim">'+p+'</span>';}).join(' ')+'</td>'+
+    '<td><span class="tag '+st[1]+'">'+st[0]+'</span>'+(d.scheduled?'<br><span class="tag dim">'+d.scheduled.replace('T',' ').slice(0,16)+'</span>':'')+'</td>'+
+    '<td><div class="rowact">'+(d.status==='draft'?'<button class="btn sm red" data-dr="approve" data-id="'+d.id+'">დამტკიცება</button>':'')+
+    (d.status==='approved'||d.status==='scheduled'?'<button class="btn sm red" data-dr="publish" data-id="'+d.id+'">გამოქვეყნება</button>':'')+
+    '<button class="btn sm" data-dr="del" data-id="'+d.id+'">წაშლა</button></div></td></tr>';
+  }).join('')+'</table></div></div></div>';
+}
+
+function vSettings(){
+  return '<div class="grid2"><div class="panel"><div class="ph"><h3>მაღაზიის ინფორმაცია</h3></div><div class="pb">'+
+    '<dl class="kv"><dt>ბრენდი</dt><dd>GeoTactical Market</dd><dt>დომენი</dt><dd>geotacticalmarket.com</dd><dt>ენა</dt><dd>ქართული</dd><dt>რეჟიმი</dt><dd>დემო — მონაცემები ინახება ამ ბრაუზერში</dd></dl>'+
+    '<p class="empty">რეალური გაშვებისთვის საჭიროა backend (მონაცემთა ბაზა, ავტორიზაცია, გადახდები).</p></div></div>'+
+  '<div><div class="panel"><div class="ph"><h3>ადმინის პაროლის შეცვლა</h3></div><div class="pb"><form id="pass-form">'+
+    '<label class="fl">ახალი პაროლი (მინ. 8 სიმბოლო)</label><input type="password" name="p1" required>'+
+    '<label class="fl">გაიმეორეთ</label><input type="password" name="p2" required>'+
+    '<div class="rowact" style="margin-top:10px"><button class="btn red" type="submit">შენახვა</button></div></form></div></div>'+
+  '<div class="panel" style="margin-top:14px"><div class="ph"><h3>მონაცემები</h3></div><div class="pb"><button class="btn" id="reset-data">დემო-მონაცემების საწყისზე დაბრუნება</button></div></div></div></div>';
+}
+
+/* ---------- login ---------- */
+function renderLogin(){
+  app.innerHTML='<div class="login-wrap"><div class="login-card">'+
+  '<div class="brandline"><span class="dot"></span><span>GEOTACTICAL ADMIN</span></div>'+
+  '<h1>მართვის კონსოლი</h1><div class="sub">geotacticalmarket.com — სრული ადმინისტრირება და მენეჯმენტი</div>'+
+  '<form id="login-form"><label>მომხმარებელი</label><input name="u" autocomplete="username" required>'+
+  '<label>პაროლი</label><input type="password" name="p" autocomplete="current-password" required>'+
+  '<div class="err"></div><button class="btn red" style="width:100%;margin-top:8px" type="submit">შესვლა</button></form>'+
+  '<div class="note">დემო წვდომა: admin / tactical2026 (შეცვალეთ პარამეტრებში)</div>'+
+  '</div></div>';
+  document.getElementById('login-form').addEventListener('submit',function(e){
+    e.preventDefault();
+    var u=e.target.u.value.trim(), p=e.target.p.value;
+    if(u===db.auth.user && btoa(p)===db.auth.p){ S.authed=true; sessionStorage.setItem('gtm-admin-session','1'); log('ადმინი შემოვიდა კონსოლში'); render(); }
+    else e.target.parentElement.querySelector('.err').textContent='მომხმარებელი ან პაროლი არასწორია.';
+  });
+}
+
+/* ---------- events ---------- */
+function bind(){
+  app.querySelectorAll('[data-v]').forEach(function(el){ el.addEventListener('click',function(e){ e.preventDefault(); S.view=el.dataset.v; S.q=''; render(); }); });
+  var lo=app.querySelector('[data-act="logout"]'); if(lo) lo.addEventListener('click',function(){ S.authed=false; sessionStorage.removeItem('gtm-admin-session'); render(); });
+  var q=app.querySelector('[data-tool="q"]'); if(q){ q.addEventListener('input',function(){ S.q=q.value; var pos=q.selectionStart; render(); var nq=app.querySelector('[data-tool="q"]'); nq.focus(); nq.setSelectionRange(pos,pos); }); }
+  app.querySelectorAll('[data-lst]').forEach(function(b){ b.addEventListener('click',function(){
+    db.listingStatus[b.dataset.id]= b.dataset.lst==='approve'?'approved':'rejected'; save('listingStatus');
+    var l=allListings().find(function(x){return x.id===b.dataset.id;});
+    log('განცხადება „'+(l?l.name:b.dataset.id)+'" — '+(b.dataset.lst==='approve'?'დამტკიცდა':'უარყოფილია'));
+    toast(b.dataset.lst==='approve'?'განცხადება დამტკიცდა':'განცხადება უარყოფილია'); render();
+  }); });
+  app.querySelectorAll('[data-ord]').forEach(function(b){ b.addEventListener('click',function(){
+    var o=db.orders.find(function(x){return x.id===b.dataset.id;}); if(!o)return;
+    if(b.dataset.ord==='cancel'){ o.status='cancelled'; } else { o.status={'new':'confirmed','confirmed':'shipped','shipped':'completed'}[o.status]||o.status; }
+    save('orders'); log('შეკვეთა '+o.id+' → '+o.status); render();
+  }); });
+  app.querySelectorAll('[data-usr]').forEach(function(b){ b.addEventListener('click',function(){
+    var em=b.dataset.id, f=db.userFlags[em]||{};
+    if(b.dataset.usr==='verify') f.verified=!f.verified; else f.blocked=!f.blocked;
+    db.userFlags[em]=f; save('userFlags'); log('მომხმარებელი '+em+': '+(b.dataset.usr==='verify'?(f.verified?'ვერიფიცირებულია':'ვერიფიკაცია მოხსნილია'):(f.blocked?'დაბლოკილია':'განბლოკილია'))); render();
+  }); });
+  app.querySelectorAll('[data-cat]').forEach(function(b){ b.addEventListener('click',function(){
+    var p=db.catalog.find(function(x){return x.id===b.dataset.id;}); if(!p)return;
+    if(b.dataset.cat==='toggle'){ p.active=!p.active; }
+    else { p.price=+app.querySelector('[data-cat-price="'+p.id+'"]').value||p.price; p.stock=+app.querySelector('[data-cat-stock="'+p.id+'"]').value||0; }
+    save('catalog'); log('კატალოგი: „'+p.name+'" განახლდა'); toast('შენახულია'); render();
+  }); });
+  app.querySelectorAll('[data-cmp-chk]').forEach(function(c){ c.addEventListener('change',function(){
+    var x=db.compliance.find(function(y){return y.id===c.dataset.id;}); if(!x)return;
+    x.checks[c.dataset.cmpChk]=c.checked; save('compliance'); render();
+  }); });
+  app.querySelectorAll('[data-cmp]').forEach(function(b){ b.addEventListener('click',function(){
+    var x=db.compliance.find(function(y){return y.id===b.dataset.id;}); if(!x)return;
+    x.status=b.dataset.cmp==='approve'?'approved':'rejected'; save('compliance');
+    log('კანონიერი გადაცემა „'+x.item+'" — '+(x.status==='approved'?'დამტკიცდა':'უარყოფილია')); render();
+  }); });
+  app.querySelectorAll('[data-msg]').forEach(function(m){ m.addEventListener('click',function(){ S.msgId=m.dataset.msg;
+    var x=db.messages.find(function(y){return y.id===S.msgId;}); if(x&&x.status==='new'){ x.status='in progress'; save('messages'); } render();
+  }); });
+  app.querySelectorAll('[data-msg-act]').forEach(function(b){ b.addEventListener('click',function(){
+    var x=db.messages.find(function(y){return y.id===b.dataset.id;}); if(!x)return;
+    x.status={reply:'replied',progress:'in progress',close:'closed'}[b.dataset.msgAct];
+    save('messages'); log('შეტყობინება „'+x.subject+'" → '+x.status); toast(b.dataset.msgAct==='reply'?'პასუხი გაგზავნილია (დემო)':'სტატუსი განახლდა'); render();
+  }); });
+  var df=app.querySelector('#draft-form');
+  if(df){
+    df.category.addEventListener('change',function(){ document.getElementById('hash-preview').innerHTML=hashtags(df.category.value).map(function(h){return '<span>'+h+'</span>';}).join(''); });
+    df.addEventListener('submit',function(e){ e.preventDefault();
+      db.drafts.unshift({id:id(), title:df.title.value.trim(), platforms:df.platforms.value.split(','), category:df.category.value, ge:df.ge.value.trim(), en:df.en.value.trim(), status:'draft', scheduled:df.scheduled.value||''});
+      save('drafts'); log('ახალი სოციალური დრაფტი: '+df.title.value.trim()); toast('დრაფტი შენახულია'); render();
+    });
+  }
+  app.querySelectorAll('[data-dr]').forEach(function(b){ b.addEventListener('click',function(){
+    var i=db.drafts.findIndex(function(d){return d.id===b.dataset.id;}); if(i<0)return;
+    if(b.dataset.dr==='del') db.drafts.splice(i,1);
+    else if(b.dataset.dr==='approve') db.drafts[i].status=db.drafts[i].scheduled?'scheduled':'approved';
+    else if(b.dataset.dr==='publish') db.drafts[i].status='published';
+    save('drafts'); render();
+  }); });
+  var pf=app.querySelector('#pass-form');
+  if(pf) pf.addEventListener('submit',function(e){ e.preventDefault();
+    if(pf.p1.value.length<8) return toast('პაროლი ძალიან მოკლეა');
+    if(pf.p1.value!==pf.p2.value) return toast('პაროლები არ ემთხვევა');
+    db.auth.p=btoa(pf.p1.value); save('auth'); toast('პაროლი შეცვლილია'); pf.reset();
+  });
+  var rd=app.querySelector('#reset-data');
+  if(rd) rd.addEventListener('click',function(){
+    ['listings','listing-status','orders','catalog','user-flags','seed-users','messages','compliance','drafts','activity'].forEach(function(k){ localStorage.removeItem('gtm-admin-'+k); });
+    location.reload();
+  });
+}
+
+render();
+})();
+</script>
+</body>
+</html>

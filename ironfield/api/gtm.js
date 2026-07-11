@@ -143,7 +143,8 @@ module.exports = async function handler(req, res) {
     }
     if (a === 'listings' && req.method === 'POST') {
       const s = await sessionUser(req);
-      if (!s) return json(res, 401, { error: 'login-required' });
+      const admin = isAdmin(req);
+      if (!s && !admin) return json(res, 401, { error: 'login-required' });
       const b = await readBody(req);
       const all = await getJSON('gtm:listings', []);
       const item = {
@@ -152,8 +153,10 @@ module.exports = async function handler(req, res) {
         price: Math.max(0, +b.price || 0),
         cat: String(b.cat || '—').slice(0, 60),
         cond: String(b.cond || '—').slice(0, 40),
+        desc: String(b.desc || '').trim().slice(0, 500),
         regulated: !!b.regulated,
-        seller: s.name, sellerEmail: s.email,
+        seller: s ? s.name : 'GeoTactical Market-ის მაღაზია',
+        sellerEmail: s ? s.email : 'store@geotacticalmarket.com',
         status: 'approved', created: new Date().toISOString()
       };
       if (item.name.length < 3) return json(res, 400, { error: 'bad-name' });

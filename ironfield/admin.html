@@ -359,7 +359,7 @@ var SOP = {
   listings:  {m:'ყველა განცხადება ქვეყნდება ავტომატურად, დაუყოვნებლივ.', a:'აქვეყნებს ყველა ახალ განცხადებას თქვენი ჩარევის გარეშე.', u:'პერიოდული თვალიერება; აშკარა დარღვევის მოხსნა უარყოფით.', f:'კვირაში 1-ჯერ'},
   orders:    {m:'არც ერთი შეკვეთა არ დარჩეს უპასუხოდ 24 საათზე მეტხანს.', a:'იჭერს ახალ შეკვეთებს, აწყობს სტატუსების მილსადენს.', u:'დაადასტურე ახალი → მონიშნე გზაშია/დასრულებული.', f:'დღეში 1–2-ჯერ'},
   users:     {m:'რეგისტრაცია და ვერიფიკაცია სრულად ავტომატურია.', a:'არეგისტრირებს და ავტომატურად ვერიფიცირებს ყველა ახალ მომხმარებელს.', u:'მხოლოდ ბლოკირება დარღვევისას.', f:'საჭიროებისას'},
-  catalog:   {m:'ფასები აქტუალურია, მარაგი არასდროს არის 0-ზე შეუმჩნევლად.', a:'აფრთხილებს მცირე მარაგზე (≤2 ცალი).', u:'განაახლე ფასი/მარაგი, გამორთე ამოწურული.', f:'კვირაში 1-ჯერ'},
+  catalog:   {m:'ფასები აქტუალურია, მარაგი არასდროს არის 0-ზე შეუმჩნევლად; ახალი პროდუქცია შემოდის PDF-იმპორტით.', a:'აფრთხილებს მცირე მარაგზე; იმპორტ-კოდით აქვეყნებს ახალ პროდუქციას პაკეტურად.', u:'მიაწოდე Claude-ს PDF → ჩასვი მზა კოდი → ერთი ღილაკი.', f:'კვირაში 1-ჯერ'},
   compliance:{m:'გადაცემების ჟურნალი — არასავალდებულო ჩანაწერები საკუთარი სიმშვიდისთვის.', a:'ინახავს გადაცემის ჩანაწერებს, თუ გადაწყვეტთ წარმოებას.', u:'არაფერი სავალდებულო — იარაღი საქართველოში ისედაც რეგისტრირებულია.', f:'სურვილისამებრ'},
   inbox:     {m:'ყველა შეტყობინებას პასუხი აქვს 24 საათში.', a:'ახარისხებს თემით, ითვლის სისწრაფის ქულას, გთავაზობს მზა პასუხს.', u:'დააჭირე „პასუხს" — შაბლონი უკვე ჩასმულია, საჭიროებისას შეასწორე.', f:'დღეში 1-ჯერ'},
   marketing: {m:'კვირაში მინიმუმ 3 პოსტი ორივე არხზე.', a:'ჰეშთეგები, ორენოვანი დრაფტები, კონტენტ-კალენდარი.', u:'დაწერე იდეა → დაამტკიცე → გამოაქვეყნე Meta Business-იდან.', f:'კვირაში 1 სესია (30 წთ)'},
@@ -482,7 +482,13 @@ function vCatalog(){
     '<td><input type="number" min="0" value="'+p.stock+'" data-cat-stock="'+p.id+'"></td>'+
     '<td>'+(p.active?'<span class="tag green">აქტიური</span>':'<span class="tag dim">გამორთული</span>')+'</td>'+
     '<td><div class="rowact"><button class="btn sm red" data-cat="save" data-id="'+p.id+'">შენახვა</button><button class="btn sm" data-cat="toggle" data-id="'+p.id+'">'+(p.active?'გამორთვა':'ჩართვა')+'</button></div></td></tr>';
-  }).join('')+'</table></div></div>';
+  }).join('')+'</table></div></div>'+
+  '<div class="panel" style="margin-top:14px"><div class="ph"><h3>პროდუქტების იმპორტი — Claude-ისგან</h3></div><div class="pb">'+
+  '<p style="color:var(--muted);font-size:.86rem;margin-bottom:10px">მიაწოდეთ Claude-ს PDF ფასებით (Google Drive-ით) — ის მოამზადებს იმპორტ-კოდს მოკლე აღწერებით. ჩასვით აქ და ერთი ღილაკით გამოქვეყნდება.</p>'+
+  '<textarea id="imp-json" rows="5" placeholder=\'[{"name":"...", "price":100, "cat":"ოპტიკა", "cond":"ახალი", "desc":"..."}]\'></textarea>'+
+  '<div class="rowact" style="margin-top:10px"><button class="btn red" id="imp-go">იმპორტი და გამოქვეყნება</button></div>'+
+  '<div class="if-price-note" id="imp-note" hidden></div>'+
+  '</div></div>';
 }
 
 function vCompliance(){
@@ -759,6 +765,27 @@ function bind(){
     m.status={reply:'replied',hide:'hidden',unhide:'new'}[b.dataset.men];
     save('mentions'); log('სოც. კომენტარი ('+m.platform+', '+m.author+') → '+m.status); render();
   }); });
+  var ig=app.querySelector('#imp-go');
+  if(ig) ig.addEventListener('click',function(){
+    var note=document.getElementById('imp-note'); note.hidden=false;
+    var items;
+    try{ items=JSON.parse(document.getElementById('imp-json').value); }catch(e){ note.textContent='არასწორი ფორმატი — ჩასვით ზუსტად ის კოდი, რომელიც Claude-მ მოგცათ.'; return; }
+    if(!Array.isArray(items)||!items.length){ note.textContent='ცარიელი სია.'; return; }
+    items=items.filter(function(x){return x&&x.name&&+x.price>0;});
+    if(!items.length){ note.textContent='ვერცერთი ვალიდური ნივთი ვერ მოიძებნა.'; return; }
+    if(API.on){
+      note.textContent='იტვირთება...';
+      var done=0, fail=0;
+      var run=items.reduce(function(pr,x){ return pr.then(function(){
+        return api('listings',{method:'POST',body:JSON.stringify({name:x.name,price:+x.price,cat:x.cat||'—',cond:x.cond||'ახალი',desc:x.desc||'',regulated:!!x.regulated})})
+          .then(function(r){ if(r&&r.id)done++; else fail++; }).catch(function(){ fail++; });
+      });}, Promise.resolve());
+      run.then(function(){ log('კატალოგის იმპორტი: '+done+' ნივთი გამოქვეყნდა'+(fail?(', '+fail+' შეცდომა'):'')); toast(done+' ნივთი გამოქვეყნდა'); return refreshLive(); }).then(render);
+    } else {
+      items.forEach(function(x){ db.listings.unshift({id:'imp'+Date.now().toString(36)+Math.random().toString(36).slice(2,5), name:x.name, seller:'GeoTactical Market-ის მაღაზია', price:+x.price, cat:x.cat||'—', cond:x.cond||'ახალი', regulated:!!x.regulated, created:new Date().toISOString()}); });
+      save('listings'); log('კატალოგის იმპორტი (დემო): '+items.length+' ნივთი'); toast(items.length+' ნივთი დაემატა'); render();
+    }
+  });
   var pf=app.querySelector('#pass-form');
   if(pf) pf.addEventListener('submit',function(e){ e.preventDefault();
     if(pf.p1.value.length<8) return toast('პაროლი ძალიან მოკლეა');

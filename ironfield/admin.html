@@ -265,6 +265,7 @@ var AGENTS = [
   {k:'social',    n:'სოც. მონიტორინგის აგენტი', d:'FB და Instagram გვერდების მონიტორინგი და მართვა', m:function(){var c=db.mentions.filter(function(m){return m.status==='new';}).length; return c?c+' ახალი კომენტარი':'';}}
 ];
 var PLAYBOOK = [
+  {id:'mail', t:'ბიზნეს-იმეილის შექმნა (ჯერ Gmail, შემდეგ info@geotacticalmarket.com)'},
   {id:'fb',   t:'Facebook გვერდის შექმნა — GeoTactical Market'},
   {id:'ig',   t:'Instagram Business ანგარიშის შექმნა და FB გვერდთან დაკავშირება'},
   {id:'meta', t:'Meta Business Suite-ში ორივე არხის დაერთება (მართვა ერთი პანელიდან)'},
